@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
   // Sign out from Supabase - this will clear the session cookies
   await supabase.auth.signOut()
   
-  // Redirect to login page with cache-busting
-  const response = NextResponse.redirect(new URL('/admin/login', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'))
+  // Redirect to login page - use request.url to get the correct domain
+  const response = NextResponse.redirect(new URL('/admin/login', request.url))
   
   // Clear all Supabase auth cookies explicitly
   response.cookies.delete('sb-access-token')
