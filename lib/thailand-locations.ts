@@ -1,7 +1,8 @@
 // Thailand Provinces, Districts, and Sub-districts data
+// Minimal version - optimized for client-side bundle size
 // Data source: https://github.com/kongvut/thai-province-data
 
-import thaiProvinceData from './thai-province-data.json'
+import thaiProvinceData from './thai-province-data-min.json'
 
 export interface SubDistrict {
   name_th: string
@@ -21,54 +22,37 @@ export interface Province {
   districts: District[]
 }
 
-// Raw data interface from the JSON file
-interface RawSubDistrict {
-  id: number
-  zip_code: number
-  name_th: string
-  name_en: string
-  district_id: number
-  lat: number | null
-  long: number | null
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
+// Minimal data interface from the optimized JSON file
+interface MinimalSubDistrict {
+  n: string  // name_th
+  e: string  // name_en
+  z?: number // zip_code
 }
 
-interface RawDistrict {
-  id: number
-  name_th: string
-  name_en: string
-  province_id: number
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
-  sub_districts: RawSubDistrict[]
+interface MinimalDistrict {
+  n: string  // name_th
+  e: string  // name_en
+  s: MinimalSubDistrict[]  // sub_districts
 }
 
-interface RawProvince {
-  id: number
-  name_th: string
-  name_en: string
-  geography_id: number
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
-  districts: RawDistrict[]
+interface MinimalProvince {
+  n: string  // name_th
+  e: string  // name_en
+  d: MinimalDistrict[]  // districts
 }
 
-// Transform raw data to our simplified interface
-function transformData(rawData: RawProvince[]): Province[] {
+// Transform minimal data to our full interface
+function transformData(rawData: MinimalProvince[]): Province[] {
   return rawData.map((province) => ({
-    name_th: province.name_th,
-    name_en: province.name_en,
-    districts: province.districts.map((district) => ({
-      name_th: district.name_th,
-      name_en: district.name_en,
-      sub_districts: district.sub_districts.map((subDistrict) => ({
-        name_th: subDistrict.name_th,
-        name_en: subDistrict.name_en,
-        zip_code: subDistrict.zip_code,
+    name_th: province.n,
+    name_en: province.e,
+    districts: province.d.map((district) => ({
+      name_th: district.n,
+      name_en: district.e,
+      sub_districts: district.s.map((subDistrict) => ({
+        name_th: subDistrict.n,
+        name_en: subDistrict.e,
+        zip_code: subDistrict.z,
       })),
     })),
   }))
@@ -79,7 +63,7 @@ let cachedProvinces: Province[] | null = null
 
 function getTransformedData(): Province[] {
   if (!cachedProvinces) {
-    cachedProvinces = transformData(thaiProvinceData as RawProvince[])
+    cachedProvinces = transformData(thaiProvinceData as MinimalProvince[])
   }
   return cachedProvinces
 }
