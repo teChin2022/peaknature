@@ -207,7 +207,7 @@ import { Tenant, Room, Booking, Profile } from '@/types/database'
 - Disable buttons during loading
 
 ### Route Protection
-- Middleware handles tenant validation and auth redirects
+- Proxy (proxy.ts) handles tenant validation and auth redirects
 - Check user role before rendering protected content
 - Use notFound() for invalid resources
 - Use redirect() for unauthorized access

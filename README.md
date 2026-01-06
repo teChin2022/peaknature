@@ -165,7 +165,7 @@ homestay-booking/
 │   ├── supabase/                 # Supabase clients
 │   │   ├── client.ts             # Browser client
 │   │   ├── server.ts             # Server client (+ admin)
-│   │   └── middleware.ts         # Middleware client
+│   │   └── middleware.ts         # Supabase session handler
 │   ├── api-client.ts             # Client-side API helpers
 │   ├── audit.ts                  # Audit logging utility
 │   ├── currency.ts               # Currency formatting
@@ -187,7 +187,7 @@ homestay-booking/
 │   └── production_init.sql       # Consolidated schema for new deployments
 ├── types/
 │   └── database.ts               # TypeScript types
-└── middleware.ts                 # Auth & tenant validation
+└── proxy.ts                      # Auth & tenant validation (Next.js 16 proxy)
 ```
 
 ## User Roles
@@ -320,7 +320,7 @@ Language files are in the `messages/` directory. Users can switch languages via 
 - ✅ Row Level Security (RLS) enabled on all tables
 - ✅ Role-based access control
 - ✅ Secure authentication with Supabase Auth
-- ✅ Protected routes via middleware
+- ✅ Protected routes via proxy
 - ✅ API rate limiting
 - ✅ Audit logging for admin actions
 - ✅ CORS and security headers configured

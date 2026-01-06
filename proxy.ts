@@ -5,7 +5,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 const protectedRoutes = ['/dashboard', '/my-bookings', '/booking']
 
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request)
   
   const pathname = request.nextUrl.pathname
@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
     
     // If there's a database error (not just "not found"), let the page handle it
     if (tenantError && tenantError.code !== 'PGRST116') {
-      console.error('Middleware tenant lookup error:', tenantError)
+      console.error('Proxy tenant lookup error:', tenantError)
       // Continue to page - let the page handle the error
       return supabaseResponse
     }
@@ -160,3 +160,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
+

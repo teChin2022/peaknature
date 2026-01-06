@@ -53,9 +53,9 @@ lib/
 └── supabase/
     ├── client.ts           # Browser Supabase client
     ├── server.ts           # Server Supabase client
-    └── middleware.ts       # Auth middleware
+    └── middleware.ts       # Supabase session handler
 
-middleware.ts               # Route protection & tenant validation
+proxy.ts                    # Route protection & tenant validation (Next.js 16)
 types/database.ts           # TypeScript type definitions
 ```
 
@@ -177,7 +177,7 @@ interface TenantSettings {
 ### 3.4 Tenant Validation (Middleware)
 
 ```typescript
-// middleware.ts - Tenant validation flow
+// proxy.ts - Tenant validation flow
 1. Extract slug from URL path
 2. Skip if system route (admin, host, privacy, terms, upload)
 3. Query tenants table by slug
@@ -187,7 +187,7 @@ interface TenantSettings {
 7. If user blocked → Sign out and redirect with ?error=blocked
 ```
 
-**Reference:** `middleware.ts` (lines 64-141)
+**Reference:** `proxy.ts` (lines 64-141)
 
 ---
 
@@ -663,7 +663,7 @@ const registerSchema = z.object({
 ### 9.3 Route Protection (Middleware)
 
 ```typescript
-// middleware.ts
+// proxy.ts
 
 // Admin routes: Only super_admin
 if (pathname.startsWith('/admin')) {
