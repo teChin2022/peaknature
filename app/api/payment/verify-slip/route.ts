@@ -123,11 +123,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Verify with EasySlip if enabled
+    // Check if EasySlip verification is enabled
     let verificationResult = null
     const easySlipApiKey = process.env.EASYSLIP_API_KEY
+    const shouldVerifyWithEasySlip = settings.payment?.easyslip_enabled && easySlipApiKey
 
-    if (settings.payment?.easyslip_enabled && easySlipApiKey) {
+    // If EasySlip is NOT enabled, skip verification entirely (instant confirmation)
+    if (!shouldVerifyWithEasySlip) {
+      logger.info('EasySlip disabled - accepting slip without verification', { bookingId })
+    } else {
+      // Verify with EasySlip (this is the slow part)
       verificationResult = await verifySlip({
         image: slipUrl,
         apiKey: easySlipApiKey,
@@ -136,24 +141,29 @@ export async function POST(request: NextRequest) {
       })
 
       if (!verificationResult.success) {
-        return NextResponse.json({
-          success: false,
-          error: verificationResult.error 
-            ? getEasySlipErrorMessage(verificationResult.error.code)
-            : 'Failed to verify payment slip'
-        })
-      }
-
-      if (!verificationResult.verified) {
+        // If timeout or network error, still accept the slip (manual verification)
+        if (verificationResult.error?.code === 'TIMEOUT' || verificationResult.error?.code === 'NETWORK_ERROR') {
+          logger.warn('EasySlip timeout/error - accepting slip for manual verification', { 
+            bookingId, 
+            error: verificationResult.error 
+          })
+          // Continue without blocking - host will verify manually
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: verificationResult.error 
+              ? getEasySlipErrorMessage(verificationResult.error.code)
+              : 'Failed to verify payment slip'
+          })
+        }
+      } else if (!verificationResult.verified) {
         const actualAmount = verificationResult.data?.amount.amount
         return NextResponse.json({
           success: false,
           error: `Amount mismatch. Expected: ${expectedAmount}, Received: ${actualAmount}`
         })
-      }
-
-      // Check for duplicate slip (prevent reuse)
-      if (verificationResult.data?.transRef) {
+      } else if (verificationResult.data?.transRef) {
+        // Only check duplicates if verification succeeded
         const transRef = verificationResult.data.transRef
         
         // Check if this transaction reference has been used before

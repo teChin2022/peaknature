@@ -45,13 +45,9 @@ export function QRUploadModal({
   const [isUploaded, setIsUploaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Generate upload URL - use NEXT_PUBLIC_BASE_URL for local testing with phone
-  const envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL
-  const baseUrl = envBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '')
+  // Generate upload URL - falls back to current domain if env var not set
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const uploadUrl = token ? `${baseUrl}/upload/${token}` : ''
-  
-  // Debug log - remove after testing
-  console.log('QR Upload URL Debug:', { envBaseUrl, baseUrl, uploadUrl })
 
   // Create token when modal opens
   const createToken = useCallback(async () => {

@@ -146,7 +146,7 @@ export const defaultTenantSettings: TenantSettings = {
     promptpay_name: '',
     promptpay_qr_url: '',
     payment_timeout_minutes: 15,
-    easyslip_enabled: true,
+    easyslip_enabled: false, // Default to false for instant confirmation
     line_channel_access_token: '',
     line_user_id: ''
   },

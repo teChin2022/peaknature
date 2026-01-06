@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Upload, X, Loader2, CheckCircle2, AlertCircle, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 interface SlipUploadProps {
   onUpload: (slipUrl: string) => void
@@ -14,6 +15,7 @@ interface SlipUploadProps {
 }
 
 export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipUploadProps) {
+  const t = useTranslations('paymentPage')
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -24,13 +26,13 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
   const handleFile = useCallback(async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setUploadError('Please upload an image file')
+      setUploadError(t('errorImageOnly'))
       return
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setUploadError('Image must be less than 10MB')
+      setUploadError(t('errorMaxSize'))
       return
     }
 
@@ -57,7 +59,7 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
 
       if (uploadErr) {
         console.error('Upload error:', uploadErr)
-        setUploadError('Failed to upload image. Please try again.')
+        setUploadError(t('errorUploadFailed'))
         return
       }
 
@@ -70,7 +72,7 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
       onUpload(publicUrl)
     } catch (err) {
       console.error('Upload error:', err)
-      setUploadError('Failed to upload image. Please try again.')
+      setUploadError(t('errorUploadFailed'))
     } finally {
       setIsUploading(false)
     }
@@ -116,8 +118,8 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
     return (
       <div className="text-center py-12">
         <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" style={{ color: primaryColor }} />
-        <p className="text-lg font-medium text-stone-900">Verifying Payment...</p>
-        <p className="text-sm text-stone-500 mt-2">Please wait while we verify your payment slip</p>
+        <p className="text-lg font-medium text-stone-900">{t('verifying')}</p>
+        <p className="text-sm text-stone-500 mt-2">{t('verifyingDesc')}</p>
       </div>
     )
   }
@@ -146,7 +148,7 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
         {isUploading && (
           <div className="flex items-center justify-center gap-2 text-stone-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Uploading...</span>
+            <span className="text-sm">{t('uploading')}</span>
           </div>
         )}
 
@@ -155,7 +157,7 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-800">Verification Failed</p>
+                <p className="text-sm font-medium text-red-800">{t('verificationFailed')}</p>
                 <p className="text-sm text-red-600 mt-1">{error || uploadError}</p>
               </div>
             </div>
@@ -168,7 +170,7 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
             variant="outline" 
             className="w-full"
           >
-            Try Again with Different Image
+            {t('tryAgainDifferent')}
           </Button>
         )}
       </div>
@@ -204,13 +206,13 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
           </div>
           
           <p className="text-base font-medium text-stone-900 mb-1">
-            {isDragging ? 'Drop your slip here' : 'Upload payment slip'}
+            {isDragging ? t('dropHere') : t('uploadSlipAction')}
           </p>
           <p className="text-sm text-stone-500">
-            Drag & drop or click to browse
+            {t('dragDrop')}
           </p>
           <p className="text-xs text-stone-400 mt-2">
-            Supports: JPG, PNG, WEBP (max 10MB)
+            {t('supportedFormats')}
           </p>
         </div>
 
@@ -225,19 +227,19 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
 
       {/* Tips */}
       <div className="bg-stone-50 rounded-lg p-4">
-        <p className="text-sm font-medium text-stone-700 mb-2">Tips for successful verification:</p>
+        <p className="text-sm font-medium text-stone-700 mb-2">{t('tips')}</p>
         <ul className="text-xs text-stone-500 space-y-1">
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Upload a clear screenshot of your payment confirmation</span>
+            <span>{t('tip1')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Make sure the amount and recipient details are visible</span>
+            <span>{t('tip2')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Use the slip from your banking app, not a photo of the screen</span>
+            <span>{t('tip3')}</span>
           </li>
         </ul>
       </div>
