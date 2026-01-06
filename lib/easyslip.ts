@@ -50,14 +50,21 @@ export async function verifySlip(options: VerifySlipOptions): Promise<VerifySlip
     const isUrl = image.startsWith('http://') || image.startsWith('https://')
     const body = isUrl ? { url: image } : { data: image }
 
+    // Create AbortController with 15 second timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
+
     const response = await fetch(EASYSLIP_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     const result: EasySlipVerifyResponse = await response.json()
 
@@ -95,6 +102,19 @@ export async function verifySlip(options: VerifySlipOptions): Promise<VerifySlip
 
   } catch (error) {
     console.error('EasySlip verification error:', error)
+    
+    // Check if it was a timeout
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        verified: false,
+        error: {
+          code: 'TIMEOUT',
+          message: 'Verification timed out. Please try again.'
+        }
+      }
+    }
+    
     return {
       success: false,
       verified: false,
@@ -159,7 +179,9 @@ export const EASYSLIP_ERROR_CODES = {
   DUPLICATE_SLIP: 'This slip has already been verified',
   RATE_LIMIT: 'API rate limit exceeded',
   INVALID_API_KEY: 'Invalid API key',
-  INSUFFICIENT_CREDITS: 'Insufficient API credits'
+  INSUFFICIENT_CREDITS: 'Insufficient API credits',
+  TIMEOUT: 'Verification timed out. Please try again.',
+  NETWORK_ERROR: 'Network error. Please check your connection and try again.'
 } as const
 
 /**

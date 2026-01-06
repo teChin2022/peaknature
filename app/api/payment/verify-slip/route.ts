@@ -185,39 +185,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update booking status - only use columns that definitely exist
+    // Run all DB writes in parallel for speed
     const updateData: Record<string, unknown> = {
       status: 'confirmed',
       payment_slip_url: slipUrl
     }
 
-    // Try to update with additional fields if they exist
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update(updateData)
-      .eq('id', bookingId)
+    // Create admin client once for audit log
+    const adminClient = createAdminClient()
 
-    if (updateError) {
-      console.error('Failed to update booking:', updateError)
-      
-      // If update fails, try with just status
-      const { error: fallbackError } = await supabase
+    // Execute all DB operations in parallel
+    const [updateResult, , ] = await Promise.all([
+      // 1. Update booking status
+      supabase
         .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', bookingId)
+        .update(updateData)
+        .eq('id', bookingId),
       
-      if (fallbackError) {
-        console.error('Fallback update also failed:', fallbackError)
-        return NextResponse.json({
-          success: false,
-          error: 'Failed to confirm booking: ' + fallbackError.message
-        })
-      }
-    }
-
-    // Store verified slip to prevent reuse (ALWAYS store, not just when EasySlip is used)
-    try {
-      await supabase.from('verified_slips').insert({
+      // 2. Store verified slip to prevent reuse
+      supabase.from('verified_slips').insert({
         trans_ref: verificationResult?.data?.transRef || null,
         slip_url_hash: slipUrlHash,
         booking_id: bookingId,
@@ -225,16 +211,10 @@ export async function POST(request: NextRequest) {
         amount: verificationResult?.data?.amount?.amount || expectedAmount,
         slip_url: slipUrl,
         easyslip_data: verificationResult?.data || null
-      })
-    } catch (storeError) {
-      // Log but don't fail - the booking is already confirmed
-      logger.error('Failed to store verified slip', storeError)
-    }
-
-    // Log payment verification to audit log
-    try {
-      const adminClient = createAdminClient()
-      await adminClient.from('audit_logs').insert({
+      }).catch(err => logger.error('Failed to store verified slip', err)),
+      
+      // 3. Log payment verification to audit log
+      adminClient.from('audit_logs').insert({
         action: 'payment.verify',
         category: 'user',
         severity: 'info',
@@ -252,9 +232,26 @@ export async function POST(request: NextRequest) {
           checkOut: booking.check_out
         },
         success: true
-      })
-    } catch (auditError) {
-      logger.error('Failed to log payment verification', auditError)
+      }).catch(err => logger.error('Failed to log payment verification', err))
+    ])
+
+    // Only check the booking update result (critical operation)
+    if (updateResult.error) {
+      console.error('Failed to update booking:', updateResult.error)
+      
+      // If update fails, try with just status
+      const { error: fallbackError } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', bookingId)
+      
+      if (fallbackError) {
+        console.error('Fallback update also failed:', fallbackError)
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to confirm booking: ' + fallbackError.message
+        })
+      }
     }
 
     // Release the reservation lock (fire and forget - don't block response)
