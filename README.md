@@ -1,36 +1,205 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Homestay Booking Platform
+
+A multi-tenant homestay booking platform built with Next.js 16, React 19, Supabase, and shadcn/ui.
+
+## Features
+
+### For Property Owners (Hosts)
+- 🏠 Create and manage multiple rooms
+- 📅 Availability calendar with price overrides
+- 📊 Dashboard with booking analytics
+- 💳 Accept online payments (Stripe integration ready)
+- 🎨 Customizable branding (logo, colors)
+
+### For Guests
+- 🔍 Browse available rooms
+- 📖 View room details, amenities, and photos
+- 📆 Check availability and book online
+- 📝 View booking history
+- ⭐ Leave reviews
+
+### For Super Admins
+- 👥 Manage all tenants and users
+- 📊 Platform-wide analytics
+- 💰 Subscription management
+- ⚙️ System settings
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **UI Library**: React 19
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **Styling**: Tailwind CSS 4
+- **Components**: shadcn/ui (Radix UI)
+- **Forms**: React Hook Form + Zod
+- **Icons**: Lucide React
+- **Date Handling**: date-fns
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm or yarn
+- Supabase account
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd homestay-booking
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Create a Supabase project and run the migrations:
+```bash
+# In your Supabase dashboard, run the SQL files in order:
+# 1. supabase/migrations/001_initial_schema.sql
+# 2. supabase/migrations/002_row_level_security.sql
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-## Learn More
+Add your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. Run the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+homestay-booking/
+├── app/                      # Next.js App Router pages
+│   ├── admin/               # Super admin panel
+│   │   ├── login/          # Admin login
+│   │   ├── register/       # Host registration
+│   │   ├── tenants/        # Tenant management
+│   │   ├── users/          # User management
+│   │   ├── subscriptions/  # Subscription management
+│   │   ├── analytics/      # Platform analytics
+│   │   └── settings/       # System settings
+│   ├── [slug]/             # Tenant-specific pages
+│   │   ├── dashboard/      # Host dashboard
+│   │   ├── rooms/          # Room listings
+│   │   ├── booking/        # Booking flow
+│   │   ├── my-bookings/    # Guest bookings
+│   │   ├── login/          # Guest login
+│   │   └── register/       # Guest registration
+│   ├── layout.tsx          # Root layout
+│   └── page.tsx            # Platform landing page
+├── components/
+│   ├── admin/              # Admin panel components
+│   ├── auth/               # Authentication components
+│   ├── booking/            # Booking components
+│   ├── dashboard/          # Dashboard components
+│   ├── tenant/             # Tenant-specific components
+│   └── ui/                 # shadcn/ui components
+├── lib/
+│   ├── supabase/           # Supabase clients
+│   │   ├── client.ts       # Browser client
+│   │   ├── server.ts       # Server client
+│   │   └── middleware.ts   # Middleware client
+│   └── utils.ts            # Utility functions
+├── supabase/
+│   └── migrations/         # Database migrations
+├── types/
+│   └── database.ts         # TypeScript types
+└── middleware.ts           # Next.js middleware
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## User Roles
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Role | Access |
+|------|--------|
+| `super_admin` | Full platform access, manage all tenants and users |
+| `host` | Manage own tenant, rooms, and bookings |
+| `guest` | Book rooms, view own bookings, write reviews |
+
+## Routes
+
+### Public Routes
+- `/` - Platform landing page
+- `/{slug}` - Tenant landing page
+- `/{slug}/rooms` - Room listings
+- `/{slug}/rooms/{id}` - Room details
+- `/{slug}/login` - Guest login
+- `/{slug}/register` - Guest registration
+
+### Protected Routes (Guest)
+- `/{slug}/booking/{roomId}` - Booking flow
+- `/{slug}/my-bookings` - My bookings
+
+### Protected Routes (Host)
+- `/{slug}/dashboard` - Dashboard overview
+- `/{slug}/dashboard/rooms` - Room management
+- `/{slug}/dashboard/bookings` - Booking management
+
+### Admin Routes (Super Admin)
+- `/admin` - Admin dashboard
+- `/admin/tenants` - Tenant management
+- `/admin/users` - User management
+- `/admin/subscriptions` - Subscription management
+- `/admin/analytics` - Analytics
+- `/admin/settings` - Settings
+
+## Database Schema
+
+### Tables
+- `tenants` - Property/homestay information
+- `profiles` - User profiles (extends auth.users)
+- `rooms` - Room/accommodation details
+- `bookings` - Reservations
+- `room_availability` - Date-specific availability/pricing
+- `reviews` - Guest reviews
+
+## Security
+
+- Row Level Security (RLS) enabled on all tables
+- Role-based access control
+- Secure authentication with Supabase Auth
+- Protected routes via middleware
+
+## Development
+
+### Running Locally
+```bash
+npm run dev
+```
+
+### Building for Production
+```bash
+npm run build
+```
+
+### Linting
+```bash
+npm run lint
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details

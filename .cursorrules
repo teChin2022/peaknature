@@ -1,0 +1,237 @@
+# Homestay Booking Platform - Cursor Rules
+
+## Project Overview
+This is a multi-tenant homestay booking platform built with Next.js 16, React 19, Supabase, and shadcn/ui.
+
+## Tech Stack
+- **Framework**: Next.js 16 (App Router) with React 19
+- **Language**: TypeScript 5
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **Styling**: Tailwind CSS 4
+- **UI Components**: shadcn/ui (Radix UI primitives)
+- **Forms**: React Hook Form + Zod validation
+- **Icons**: Lucide React
+- **Date Handling**: date-fns
+
+## Architecture
+
+### Multi-Tenant Structure
+- Each tenant (homestay property) has a unique slug
+- Routes follow pattern: `/{tenant-slug}/...`
+- Tenants have: name, slug, logo_url, primary_color, plan, is_active
+
+### User Roles
+1. **super_admin**: Platform administrator (access /admin/*)
+2. **host**: Tenant owner (access /{slug}/dashboard/*)
+3. **guest**: End user who books rooms
+
+### Route Structure
+```
+/                           # Platform marketing page
+/admin/*                    # Super admin panel
+/{slug}                     # Tenant landing page
+/{slug}/rooms               # Room listing
+/{slug}/rooms/{id}          # Room detail
+/{slug}/login               # Tenant guest login
+/{slug}/register            # Tenant guest register
+/{slug}/booking/{roomId}    # Booking flow
+/{slug}/my-bookings         # Guest bookings
+/{slug}/dashboard/*         # Host dashboard
+```
+
+## Coding Conventions
+
+### File Organization
+- Pages in `app/` directory using App Router
+- Reusable components in `components/`
+- UI primitives in `components/ui/` (shadcn)
+- Feature components organized by domain (admin/, auth/, booking/, tenant/)
+- Supabase clients in `lib/supabase/`
+- TypeScript types in `types/`
+
+### Supabase Usage
+
+**Server Components** (default):
+```typescript
+import { createClient } from '@/lib/supabase/server'
+
+async function getData() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('table').select('*')
+  return data
+}
+```
+
+**Client Components** ('use client'):
+```typescript
+import { createClient } from '@/lib/supabase/client'
+
+function Component() {
+  const supabase = createClient()
+  // Use in useEffect or event handlers
+}
+```
+
+### Component Patterns
+
+**Server Component (default)**:
+```typescript
+import { createClient } from '@/lib/supabase/server'
+
+interface PageProps {
+  params: Promise<{ slug: string }>
+}
+
+export default async function Page({ params }: PageProps) {
+  const { slug } = await params
+  const supabase = await createClient()
+  // Fetch data...
+  return <div>...</div>
+}
+```
+
+**Client Component**:
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+
+export function ClientComponent() {
+  const router = useRouter()
+  const supabase = createClient()
+  // Interactive logic...
+}
+```
+
+### Form Handling
+Always use React Hook Form with Zod:
+```typescript
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+const schema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+})
+
+type FormData = z.infer<typeof schema>
+
+function Form() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  })
+  // ...
+}
+```
+
+### Styling Guidelines
+- Use Tailwind CSS classes
+- Use CSS variables for theming (defined in globals.css)
+- Tenant primary color accessed via `style={{ color: tenant.primary_color }}`
+- Dark theme for admin panel (slate-800, slate-900 backgrounds)
+- Light theme for tenant pages (stone-50, white backgrounds)
+
+### Mobile-First Design
+- **Always design mobile-first**: Start with mobile styles, then add responsive breakpoints
+- Use Tailwind responsive prefixes in ascending order: `base` → `sm:` → `md:` → `lg:` → `xl:`
+- Common breakpoints:
+  - `sm:` (640px) - Large phones / Small tablets
+  - `md:` (768px) - Tablets
+  - `lg:` (1024px) - Laptops / Desktops
+  - `xl:` (1280px) - Large screens
+
+**Example - Mobile-First Layout:**
+```tsx
+// ✅ Correct: Mobile-first approach
+<div className="flex flex-col gap-4 md:flex-row md:gap-6 lg:gap-8">
+  <div className="w-full md:w-1/2 lg:w-1/3">Sidebar</div>
+  <div className="w-full md:w-1/2 lg:w-2/3">Content</div>
+</div>
+
+// ❌ Wrong: Desktop-first (avoid this)
+<div className="flex flex-row gap-8 max-md:flex-col max-md:gap-4">...</div>
+```
+
+**Common Mobile-First Patterns:**
+```tsx
+// Grid: Stack on mobile, grid on larger screens
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+// Typography: Smaller on mobile, larger on desktop
+<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
+
+// Padding/Margin: Tighter on mobile
+<section className="px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-12">
+
+// Hide/Show elements by screen size
+<nav className="hidden lg:block">Desktop Nav</nav>
+<button className="lg:hidden">Mobile Menu</button>
+
+// Flex direction: Column on mobile, row on desktop
+<div className="flex flex-col md:flex-row items-center gap-4">
+```
+
+**Touch-Friendly Guidelines:**
+- Minimum touch target: 44x44px (`h-11 w-11` or larger)
+- Adequate spacing between interactive elements
+- Use `hover:` with `active:` for mobile feedback
+- Consider `touch-action` for scroll behavior
+
+### shadcn/ui Usage
+Import from `@/components/ui/`:
+```typescript
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+```
+
+### Database Types
+Use types from `@/types/database`:
+```typescript
+import { Tenant, Room, Booking, Profile } from '@/types/database'
+```
+
+### Error Handling
+- Use try/catch in async functions
+- Show user-friendly error messages
+- Log errors to console for debugging
+- Use Supabase error codes for specific handling
+
+### Loading States
+- Use useState for loading states: `const [isLoading, setIsLoading] = useState(false)`
+- Show Loader2 icon from lucide-react during loading
+- Disable buttons during loading
+
+### Route Protection
+- Middleware handles tenant validation and auth redirects
+- Check user role before rendering protected content
+- Use notFound() for invalid resources
+- Use redirect() for unauthorized access
+
+## Database Schema (Key Tables)
+- **tenants**: Multi-tenant properties
+- **profiles**: User profiles (extends auth.users)
+- **rooms**: Tenant rooms/accommodations
+- **bookings**: Reservations
+- **room_availability**: Blocked dates and price overrides
+- **reviews**: Guest reviews
+
+## Security
+- Row Level Security (RLS) enabled on all tables
+- Use SECURITY DEFINER functions for role checks
+- Never expose sensitive data to client
+- Validate all user input with Zod
+
+## Best Practices
+1. Prefer Server Components, use 'use client' only when needed
+2. Always handle loading and error states
+3. Use TypeScript strictly - no 'any' types
+4. Keep components small and focused
+5. Use meaningful variable and function names
+6. Add comments for complex logic
+7. Follow existing code patterns in the project
+
