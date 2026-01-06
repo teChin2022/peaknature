@@ -14,16 +14,30 @@ export async function POST(
   // Redirect to tenant's landing page after sign out
   const response = NextResponse.redirect(new URL(`/${slug}`, request.url))
   
-  // Clear all Supabase auth cookies explicitly
-  response.cookies.delete('sb-access-token')
-  response.cookies.delete('sb-refresh-token')
+  // Determine if we're on HTTPS (production)
+  const isSecure = request.url.startsWith('https')
   
-  // Clear any cookies that start with 'sb-'
-  const cookieNames = ['sb-access-token', 'sb-refresh-token']
+  // Get the Supabase project ref from env for cookie names
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || ''
+  
+  // Cookie names to clear (both old and new format)
+  const cookieNames = [
+    'sb-access-token',
+    'sb-refresh-token',
+    `sb-${projectRef}-auth-token`,
+    `sb-${projectRef}-auth-token.0`,
+    `sb-${projectRef}-auth-token.1`,
+  ]
+  
+  // Clear all auth cookies
   cookieNames.forEach(name => {
     response.cookies.set(name, '', {
       expires: new Date(0),
       path: '/',
+      secure: isSecure,
+      sameSite: 'lax',
+      httpOnly: true,
     })
   })
   

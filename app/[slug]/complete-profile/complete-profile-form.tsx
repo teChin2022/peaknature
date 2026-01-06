@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { createClient } from '@/lib/supabase/client'
 import { GuestLocationSelector } from '@/components/guest-location-selector'
 import { useTranslations } from 'next-intl'
 
@@ -14,7 +13,6 @@ interface CompleteProfileFormProps {
   slug: string
   tenant: { name: string; primary_color: string }
   nextUrl: string | null
-  userId: string  // Pass user ID from server
   initialData: {
     phone: string
     province: string
@@ -28,7 +26,6 @@ export function CompleteProfileForm({
   slug, 
   tenant, 
   nextUrl, 
-  userId,
   initialData,
   isOAuthUser 
 }: CompleteProfileFormProps) {
@@ -40,8 +37,6 @@ export function CompleteProfileForm({
   const [province, setProvince] = useState(initialData.province)
   const [district, setDistrict] = useState(initialData.district)
   const [subDistrict, setSubDistrict] = useState(initialData.subDistrict)
-
-  const supabase = createClient()
 
   // Reset district when province changes
   const handleProvinceChange = (value: string) => {
@@ -74,19 +69,23 @@ export function CompleteProfileForm({
     setError(null)
 
     try {
-      // Use the userId passed from server instead of getUser()
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
+      // Use API route to update profile (handles auth server-side)
+      const response = await fetch('/api/profile/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           phone: phone.trim(),
           province,
           district: district || null,
           sub_district: subDistrict || null,
-        })
-        .eq('id', userId)
+        }),
+      })
 
-      if (updateError) {
-        console.error('Profile update error:', updateError)
+      if (!response.ok) {
+        const data = await response.json()
+        console.error('Profile update error:', data.error)
         setError(t('errors.saveFailed'))
         return
       }
