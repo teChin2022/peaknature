@@ -1051,6 +1051,8 @@ export interface EasySlipData {
 
 export interface EasySlipVerifyResponse {
   status: number
+  /** Message returned by EasySlip API (e.g., "duplicate_slip", "invalid_image") */
+  message?: string
   data?: EasySlipData
   error?: {
     code: string

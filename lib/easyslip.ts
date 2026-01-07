@@ -18,6 +18,8 @@ export interface VerifySlipOptions {
   expectedAmount?: number
   /** Tolerance for amount validation in THB (default: 1) */
   amountTolerance?: number
+  /** Check for duplicate slip in EasySlip's system (default: true) */
+  checkDuplicate?: boolean
 }
 
 export interface VerifySlipResult {
@@ -42,13 +44,22 @@ export interface VerifySlipResult {
  * @returns Verification result with slip data if valid
  */
 export async function verifySlip(options: VerifySlipOptions): Promise<VerifySlipResult> {
-  const { image, apiKey, expectedAmount, amountTolerance = 1 } = options
+  const { image, apiKey, expectedAmount, amountTolerance = 1, checkDuplicate = true } = options
 
   try {
-    // Prepare the request body
-    // EasySlip accepts either base64 image or URL
+    // Prepare the request body based on EasySlip API documentation
+    // For URL: { "url": "..." }
+    // For Base64: { "image": "..." }
     const isUrl = image.startsWith('http://') || image.startsWith('https://')
-    const body = isUrl ? { url: image } : { data: image }
+    const body = isUrl 
+      ? { url: image, checkDuplicate } 
+      : { image: image, checkDuplicate }
+    
+    console.log('[easyslip] Sending verification request:', {
+      type: isUrl ? 'url' : 'base64',
+      checkDuplicate,
+      imageLength: isUrl ? image.length : `${image.substring(0, 50)}...`
+    })
 
     // Create AbortController with 15 second timeout
     const controller = new AbortController()
@@ -67,16 +78,32 @@ export async function verifySlip(options: VerifySlipOptions): Promise<VerifySlip
     clearTimeout(timeoutId)
 
     const result: EasySlipVerifyResponse = await response.json()
+    
+    console.log('[easyslip] API Response:', {
+      httpStatus: response.status,
+      resultStatus: result.status,
+      hasData: !!result.data,
+      message: result.message,
+      errorCode: result.error?.code
+    })
 
     // Check if API call was successful
     if (result.status !== 200 || !result.data) {
+      // Handle specific error messages from EasySlip
+      const errorCode = result.message || result.error?.code || 'API_ERROR'
+      const errorMessage = getEasySlipErrorMessage(errorCode) || result.error?.message || 'Failed to verify slip'
+      
+      console.log('[easyslip] ❌ Verification failed:', { errorCode, errorMessage })
+      
       return {
         success: false,
         verified: false,
-        error: result.error || {
-          code: 'API_ERROR',
-          message: 'Failed to verify slip'
-        }
+        error: {
+          code: errorCode,
+          message: errorMessage
+        },
+        // Include data if available (e.g., for duplicate_slip response)
+        data: result.data
       }
     }
 
@@ -88,6 +115,15 @@ export async function verifySlip(options: VerifySlipOptions): Promise<VerifySlip
       const actualAmount = slipData.amount.amount
       amountMatch = Math.abs(actualAmount - expectedAmount) <= amountTolerance
     }
+
+    console.log('[easyslip] ✅ Verification successful:', {
+      transRef: slipData.transRef,
+      amount: slipData.amount.amount,
+      expectedAmount,
+      amountMatch,
+      senderBank: slipData.sender?.bank?.short,
+      receiverBank: slipData.receiver?.bank?.short
+    })
 
     return {
       success: true,
@@ -170,16 +206,36 @@ export function extractPaymentInfo(data: EasySlipData) {
 }
 
 /**
- * Error codes from EasySlip API
+ * Error codes from EasySlip API (based on official documentation)
+ * See: https://document.easyslip.com/documents/verify/bank/base64
  */
 export const EASYSLIP_ERROR_CODES = {
-  INVALID_IMAGE: 'Invalid or unreadable image',
-  NOT_A_SLIP: 'Image is not a payment slip',
-  SLIP_EXPIRED: 'Payment slip has expired',
-  DUPLICATE_SLIP: 'This slip has already been verified',
-  RATE_LIMIT: 'API rate limit exceeded',
-  INVALID_API_KEY: 'Invalid API key',
-  INSUFFICIENT_CREDITS: 'Insufficient API credits',
+  // HTTP 400 errors
+  invalid_payload: 'Invalid request payload',
+  invalid_check_duplicate: 'Invalid checkDuplicate parameter',
+  duplicate_slip: 'This slip has already been verified in EasySlip system',
+  invalid_image: 'Invalid or unreadable image file',
+  image_size_too_large: 'Image file size is too large',
+  
+  // HTTP 401 errors
+  unauthorized: 'Invalid or missing API access token',
+  
+  // HTTP 403 errors
+  access_denied: 'Account does not have API access',
+  account_not_verified: 'Account has not completed KYC verification',
+  application_expired: 'Application subscription has expired',
+  application_deactivated: 'Application has been deactivated',
+  quota_exceeded: 'API quota has been exceeded',
+  
+  // HTTP 404 errors
+  slip_not_found: 'Slip data not found in Bank of Thailand system (may be fake)',
+  qrcode_not_found: 'QR code not found or invalid',
+  
+  // HTTP 500 errors
+  server_error: 'EasySlip server error. Please try again later.',
+  api_server_error: 'EasySlip API server error. Please try again later.',
+  
+  // Client-side errors
   TIMEOUT: 'Verification timed out. Please try again.',
   NETWORK_ERROR: 'Network error. Please check your connection and try again.'
 } as const

@@ -3,6 +3,9 @@ import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifySlip } from '@/lib/easyslip'
 import { sendLineMessage, sendEmail, generateBookingNotification, generateGuestConfirmationEmail } from '@/lib/notifications'
+import { sendAdminLineNotification } from '@/lib/line-notify'
+import { getTranslations } from '@/lib/i18n-server'
+import { Locale } from '@/lib/i18n'
 import { TenantSettings, defaultTenantSettings } from '@/types/database'
 import { formatPrice } from '@/lib/currency'
 import { format, parseISO } from 'date-fns'
@@ -492,32 +495,244 @@ export async function POST(request: NextRequest) {
             })
             .eq('booking_id', bookingId)
 
-          // Check for FRAUD
-          const isFraud = !verificationResult.success && verificationResult.error?.code &&
-            ['NOT_A_SLIP', 'INVALID_IMAGE', 'DUPLICATE_SLIP'].includes(verificationResult.error.code)
-          const isAmountMismatch = verificationResult.success && !verificationResult.verified
-
-          if (isFraud || isAmountMismatch) {
-            const failReason = isAmountMismatch
-              ? `ยอดไม่ตรง: คาดหวัง ${expectedAmount}, ได้รับ ${verificationResult.data?.amount?.amount}`
-              : (verificationResult.error?.message || 'สลิปไม่ถูกต้อง')
-
-            logger.warn('FRAUD DETECTED - Auto-cancelling', { bookingId, reason: failReason })
+          // ============ COMPREHENSIVE FRAUD DETECTION ============
+          const fraudReasons: string[] = []
+          const slipData = verificationResult.data
+          
+          // Load translations for host notifications (use tenant's language or default to Thai)
+          const tenantLocale: Locale = (settings.language as Locale) || 'th'
+          const t = await getTranslations(tenantLocale)
+          const tEn = await getTranslations('en') // Admin always gets English
+          
+          // 1. Check if EasySlip API returned an error (fake slip, invalid, duplicate)
+          if (!verificationResult.success && verificationResult.error?.code) {
+            const errorCode = verificationResult.error.code
+            const errorMessage = verificationResult.error.message
+            
+            // Log ALL EasySlip errors to audit log for admin review
+            await adminClient.from('audit_logs').insert({
+              action: 'easyslip.error',
+              category: 'security',
+              severity: errorCode === 'slip_not_found' || errorCode === 'duplicate_slip' ? 'high' : 'medium',
+              actor_id: user.id,
+              actor_email: user.email,
+              actor_role: 'guest',
+              actor_ip: clientIP,
+              target_type: 'booking',
+              target_id: bookingId,
+              tenant_id: tenantId,
+              details: { 
+                easyslip_error_code: errorCode,
+                easyslip_error_message: errorMessage,
+                slip_url: slipUrl,
+                expected_amount: expectedAmount
+              },
+              success: false
+            }).catch(err => logger.error('Failed to log EasySlip error', err))
+            
+            // These error codes indicate fraud/invalid slips
+            const fraudErrorCodes = [
+              'slip_not_found',      // Transaction not found in BOT (FAKE!)
+              'duplicate_slip',      // Already verified in EasySlip
+              'invalid_image',       // Not a valid image
+              'invalid_payload',     // Corrupted/modified slip
+              'qrcode_not_found'     // QR code is invalid
+            ]
+            if (fraudErrorCodes.includes(errorCode)) {
+              // Use translated error message if available
+              const translatedError = t.slipVerification?.easyslipErrors?.[errorCode as keyof typeof t.slipVerification.easyslipErrors] || errorMessage
+              fraudReasons.push(t.slipVerification?.fraudReasons?.invalidSlip?.replace('{message}', translatedError) || `Invalid slip: ${errorMessage}`)
+            }
+          }
+          
+          // 2. Check amount matching
+          if (verificationResult.success && !verificationResult.verified && verificationResult.validation) {
+            const amountMsg = t.slipVerification?.fraudReasons?.amountMismatch
+              ?.replace('{expected}', String(verificationResult.validation.expectedAmount))
+              ?.replace('{actual}', String(verificationResult.validation.actualAmount))
+              || `Amount mismatch: expected ${verificationResult.validation.expectedAmount}, received ${verificationResult.validation.actualAmount}`
+            fraudReasons.push(amountMsg)
+          }
+          
+          // 3. Check receiver account matches tenant's PromptPay (if data available)
+          if (slipData && settings.payment?.promptpay_id) {
+            const tenantPromptPay = settings.payment.promptpay_id.replace(/-/g, '').trim()
+            const receiverProxy = slipData.receiver?.account?.proxy?.account?.replace(/-/g, '').trim()
+            const receiverBank = slipData.receiver?.account?.bank?.account?.replace(/-/g, '').trim()
+            
+            // Check if money went to the right account
+            const matchesProxy = receiverProxy && receiverProxy.includes(tenantPromptPay.slice(-4))
+            const matchesBank = receiverBank && receiverBank.includes(tenantPromptPay.slice(-4))
+            
+            if (!matchesProxy && !matchesBank) {
+              // Only flag if we have receiver info but it doesn't match
+              if (receiverProxy || receiverBank) {
+                console.log('[verify-slip] ⚠️ Receiver mismatch:', {
+                  tenantPromptPay: tenantPromptPay.slice(-4),
+                  receiverProxy: receiverProxy?.slice(-4),
+                  receiverBank: receiverBank?.slice(-4)
+                })
+                fraudReasons.push(t.slipVerification?.fraudReasons?.receiverMismatch || 'Recipient account mismatch')
+              }
+            }
+          }
+          
+          // 4. Check for self-transfer (sender = receiver)
+          if (slipData) {
+            const senderAccount = slipData.sender?.account?.bank?.account || slipData.sender?.account?.proxy?.account
+            const receiverAccount = slipData.receiver?.account?.bank?.account || slipData.receiver?.account?.proxy?.account
+            
+            if (senderAccount && receiverAccount && senderAccount === receiverAccount) {
+              fraudReasons.push(t.slipVerification?.fraudReasons?.selfTransfer || 'Self-transfer detected')
+            }
+          }
+          
+          // 5. Check slip date is recent (within 7 days)
+          if (slipData?.date) {
+            try {
+              const slipDate = new Date(slipData.date)
+              const now = new Date()
+              const daysDiff = Math.floor((now.getTime() - slipDate.getTime()) / (1000 * 60 * 60 * 24))
+              
+              if (daysDiff > 7) {
+                const oldSlipMsg = t.slipVerification?.fraudReasons?.oldSlip?.replace('{days}', String(daysDiff)) || `Slip too old (${daysDiff} days)`
+                fraudReasons.push(oldSlipMsg)
+              } else if (daysDiff < 0) {
+                fraudReasons.push(t.slipVerification?.fraudReasons?.futureDate || 'Slip date is in the future')
+              }
+            } catch {
+              console.log('[verify-slip] Could not parse slip date:', slipData.date)
+            }
+          }
+          
+          // ============ HANDLE FRAUD DETECTION ============
+          if (fraudReasons.length > 0) {
+            const failReason = fraudReasons.join(', ')
+            
+            console.log('[verify-slip] 🚨 FRAUD DETECTED!', { bookingId, reasons: fraudReasons })
+            logger.warn('FRAUD DETECTED - Auto-cancelling', { bookingId, reasons: fraudReasons })
 
             // Cancel booking (use adminClient to bypass RLS)
+            const cancelNote = tenantLocale === 'th' ? '[ยกเลิกอัตโนมัติ]' : '[Auto-cancelled]'
             await adminClient
               .from('bookings')
-              .update({ status: 'cancelled', notes: `[Auto-cancelled] ${failReason}` })
+              .update({ 
+                status: 'cancelled', 
+                notes: `${cancelNote} ${failReason}` 
+              })
               .eq('id', bookingId)
 
-            // Notify host via LINE
+            // Prepare alert message using translations
+            const guestName = booking.user?.full_name || booking.user?.email || 'Unknown'
+            const roomName = booking.room?.name || 'Unknown Room'
+            const bookingCode = bookingId.slice(0, 8).toUpperCase()
+            
+            // Host message (use tenant's language)
+            const hostAlerts = t.slipVerification?.alerts || {}
+            const hostAlertMessage = [
+              hostAlerts.fraudDetected || '🚨 Suspicious Slip Detected - Auto-Cancelled',
+              (hostAlerts.bookingCode || '📋 Code: {code}').replace('{code}', bookingCode),
+              (hostAlerts.guest || '👤 Guest: {name}').replace('{name}', guestName),
+              (hostAlerts.room || '🏠 Room: {name}').replace('{name}', roomName),
+              (hostAlerts.amount || '💰 Amount: {amount} THB').replace('{amount}', String(expectedAmount)),
+              '',
+              hostAlerts.reasons || '❌ Reasons:',
+              ...fraudReasons.map(r => `  • ${r}`),
+              '',
+              slipData?.transRef ? (hostAlerts.transRef || '🔖 Ref: {ref}').replace('{ref}', slipData.transRef) : '',
+              slipData?.date ? (hostAlerts.slipDate || '📅 Slip Date: {date}').replace('{date}', slipData.date) : '',
+              '',
+              hostAlerts.autoCancelled || '⚠️ Booking has been auto-cancelled'
+            ].filter(Boolean).join('\n')
+
+            // Notify host/tenant via LINE
             if (settings.payment?.line_channel_access_token && settings.payment?.line_user_id) {
               await sendLineMessage({
                 channelAccessToken: settings.payment.line_channel_access_token,
                 userId: settings.payment.line_user_id,
-                message: `🚨 สลิปปลอม - ยกเลิกอัตโนมัติ\n📋 ${bookingId.slice(0,8).toUpperCase()}\n❌ ${failReason}`
-              }).catch(err => logger.error('LINE alert failed', err))
+                message: hostAlertMessage
+              }).catch(err => logger.error('LINE alert to host failed', err))
             }
+            
+            // Admin message (always English)
+            const adminAlerts = tEn.slipVerification?.adminAlerts || {}
+            const adminAlertMessage = [
+              adminAlerts.fraudAlert || '🚨 FRAUD ALERT - Payment Slip Issue',
+              '',
+              (adminAlerts.tenant || '🏠 Tenant: {name} ({slug})').replace('{name}', tenant.name).replace('{slug}', tenant.slug),
+              (adminAlerts.booking || '📋 Booking: {code}').replace('{code}', bookingCode),
+              (adminAlerts.guest || '👤 Guest: {name}').replace('{name}', guestName),
+              (adminAlerts.email || '📧 Email: {email}').replace('{email}', booking.user?.email || 'N/A'),
+              (adminAlerts.room || '🏠 Room: {name}').replace('{name}', roomName),
+              (adminAlerts.amount || '💰 Amount: {amount} THB').replace('{amount}', String(expectedAmount)),
+              '',
+              adminAlerts.fraudReasons || '❌ Fraud Reasons:',
+              ...fraudReasons.map(r => `  • ${r}`),
+              '',
+              slipData?.transRef ? (adminAlerts.transRef || '🔖 Trans Ref: {ref}').replace('{ref}', slipData.transRef) : '',
+              slipData?.sender?.bank?.short ? (adminAlerts.senderBank || '🏦 Sender Bank: {bank}').replace('{bank}', slipData.sender.bank.short) : '',
+              slipData?.receiver?.bank?.short ? (adminAlerts.receiverBank || '🏦 Receiver Bank: {bank}').replace('{bank}', slipData.receiver.bank.short) : '',
+              '',
+              adminAlerts.autoCancelled || '⚠️ Booking has been auto-cancelled.'
+            ].filter(Boolean).join('\n')
+            
+            await sendAdminLineNotification(adminAlertMessage)
+              .catch(err => logger.error('LINE alert to admin failed', err))
+            
+            // Log to audit
+            await adminClient.from('audit_logs').insert({
+              action: 'payment.fraud_detected',
+              category: 'security',
+              severity: 'high',
+              actor_id: user.id,
+              actor_email: user.email,
+              actor_role: 'guest',
+              actor_ip: clientIP,
+              target_type: 'booking',
+              target_id: bookingId,
+              tenant_id: tenantId,
+              details: { 
+                reasons: fraudReasons, 
+                slipTransRef: slipData?.transRef,
+                slipAmount: slipData?.amount?.amount,
+                slipDate: slipData?.date,
+                senderBank: slipData?.sender?.bank?.short,
+                receiverBank: slipData?.receiver?.bank?.short,
+                expectedAmount,
+                guestEmail: booking.user?.email,
+                tenantName: tenant.name
+              },
+              success: false
+            }).catch(err => logger.error('Failed to log fraud detection', err))
+          } else if (verificationResult.success) {
+            // Log successful verification to audit
+            await adminClient.from('audit_logs').insert({
+              action: 'easyslip.verified',
+              category: 'user',
+              severity: 'info',
+              actor_id: user.id,
+              actor_email: user.email,
+              actor_role: 'guest',
+              actor_ip: clientIP,
+              target_type: 'booking',
+              target_id: bookingId,
+              tenant_id: tenantId,
+              details: { 
+                transRef: slipData?.transRef,
+                amount: slipData?.amount?.amount,
+                expectedAmount,
+                senderBank: slipData?.sender?.bank?.short,
+                receiverBank: slipData?.receiver?.bank?.short,
+                slipDate: slipData?.date
+              },
+              success: true
+            }).catch(err => logger.error('Failed to log EasySlip success', err))
+            
+            console.log('[verify-slip] ✅ Slip passed all fraud checks', { 
+              bookingId,
+              transRef: slipData?.transRef,
+              amount: slipData?.amount?.amount
+            })
           }
         } catch (err) {
           console.error('[verify-slip] ❌ Background verification error:', err)

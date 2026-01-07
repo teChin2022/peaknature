@@ -832,5 +832,50 @@
       "saveFailed": "Failed to save. Please try again.",
       "somethingWrong": "Something went wrong. Please try again."
     }
+  },
+  "slipVerification": {
+    "alerts": {
+      "fraudDetected": "🚨 Suspicious Slip Detected - Auto-Cancelled",
+      "bookingCode": "📋 Code: {code}",
+      "guest": "👤 Guest: {name}",
+      "room": "🏠 Room: {name}",
+      "amount": "💰 Amount: {amount} THB",
+      "reasons": "❌ Reasons:",
+      "transRef": "🔖 Ref: {ref}",
+      "slipDate": "📅 Slip Date: {date}",
+      "autoCancelled": "⚠️ Booking has been auto-cancelled"
+    },
+    "fraudReasons": {
+      "invalidSlip": "Invalid slip: {message}",
+      "amountMismatch": "Amount mismatch: expected {expected} THB, received {actual} THB",
+      "receiverMismatch": "Recipient account doesn't match homestay's account",
+      "selfTransfer": "Self-transfer detected (sender = receiver)",
+      "oldSlip": "Slip is too old ({days} days ago)",
+      "futureDate": "Slip date is in the future (fake slip)"
+    },
+    "easyslipErrors": {
+      "slip_not_found": "Slip not found in Bank of Thailand system (may be fake)",
+      "duplicate_slip": "This slip has already been verified in EasySlip system",
+      "invalid_image": "Invalid or corrupted image file",
+      "invalid_payload": "Invalid or tampered slip data",
+      "qrcode_not_found": "QR code not found or invalid",
+      "unauthorized": "Invalid or expired API key",
+      "quota_exceeded": "EasySlip API quota exceeded",
+      "server_error": "EasySlip server error. Please try again."
+    },
+    "adminAlerts": {
+      "fraudAlert": "🚨 FRAUD ALERT - Payment Slip Issue",
+      "tenant": "🏠 Tenant: {name} ({slug})",
+      "booking": "📋 Booking: {code}",
+      "guest": "👤 Guest: {name}",
+      "email": "📧 Email: {email}",
+      "room": "🏠 Room: {name}",
+      "amount": "💰 Amount: {amount} THB",
+      "fraudReasons": "❌ Fraud Reasons:",
+      "transRef": "🔖 Trans Ref: {ref}",
+      "senderBank": "🏦 Sender Bank: {bank}",
+      "receiverBank": "🏦 Receiver Bank: {bank}",
+      "autoCancelled": "⚠️ Booking has been auto-cancelled."
+    }
   }
 }
