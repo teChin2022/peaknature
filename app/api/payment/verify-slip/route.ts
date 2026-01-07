@@ -124,106 +124,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if EasySlip verification is enabled
-    let verificationResult = null
     const easySlipApiKey = process.env.EASYSLIP_API_KEY
     const shouldVerifyWithEasySlip = settings.payment?.easyslip_enabled && easySlipApiKey
 
-    // If EasySlip is NOT enabled, skip verification entirely (instant confirmation)
+    // LOG: Will verify in background or skip
     if (!shouldVerifyWithEasySlip) {
-      logger.info('EasySlip disabled - accepting slip without verification', { bookingId })
+      logger.info('EasySlip disabled - instant confirmation', { bookingId })
     } else {
-      // Verify with EasySlip (this is the slow part)
-      verificationResult = await verifySlip({
-        image: slipUrl,
-        apiKey: easySlipApiKey,
-        expectedAmount: expectedAmount,
-        amountTolerance: 1 // Allow 1 THB tolerance
-      })
-
-      if (!verificationResult.success) {
-        // If timeout or network error, still accept the slip (manual verification)
-        if (verificationResult.error?.code === 'TIMEOUT' || verificationResult.error?.code === 'NETWORK_ERROR') {
-          logger.warn('EasySlip timeout/error - accepting slip for manual verification', { 
-            bookingId, 
-            error: verificationResult.error 
-          })
-          // Continue without blocking - host will verify manually
-        } else {
-          return NextResponse.json({
-            success: false,
-            error: verificationResult.error 
-              ? getEasySlipErrorMessage(verificationResult.error.code)
-              : 'Failed to verify payment slip'
-          })
-        }
-      } else if (!verificationResult.verified) {
-        const actualAmount = verificationResult.data?.amount.amount
-        return NextResponse.json({
-          success: false,
-          error: `Amount mismatch. Expected: ${expectedAmount}, Received: ${actualAmount}`
-        })
-      } else if (verificationResult.data?.transRef) {
-        // Only check duplicates if verification succeeded
-        const transRef = verificationResult.data.transRef
-        
-        // Check if this transaction reference has been used before
-        const { data: existingSlip } = await supabase
-          .from('verified_slips')
-          .select('id, booking_id, verified_at')
-          .eq('trans_ref', transRef)
-          .single()
-
-        if (existingSlip) {
-          return NextResponse.json({
-            success: false,
-            error: 'This payment slip has already been used. Please make a new payment and upload the new slip.'
-          })
-        }
-
-        // Check payment date - must be within last 24 hours
-        if (verificationResult.data.date) {
-          const paymentDate = parseISO(verificationResult.data.date)
-          const hoursAgo = differenceInHours(new Date(), paymentDate)
-          
-          if (hoursAgo > 24) {
-            return NextResponse.json({
-              success: false,
-              error: 'This payment slip is too old. Please make a new payment (within 24 hours) and upload the new slip.'
-            })
-          }
-        }
-      }
+      logger.info('EasySlip enabled - will verify in BACKGROUND after response', { bookingId })
     }
 
-    // Run all DB writes in parallel for speed
+    // STEP 1: Confirm booking IMMEDIATELY (no waiting for EasySlip!)
     const updateData: Record<string, unknown> = {
       status: 'confirmed',
       payment_slip_url: slipUrl
     }
 
-    // Create admin client once for audit log
     const adminClient = createAdminClient()
 
-    // Execute all DB operations in parallel
-    const [updateResult, , ] = await Promise.all([
-      // 1. Update booking status
-      supabase
-        .from('bookings')
-        .update(updateData)
-        .eq('id', bookingId),
-      
-      // 2. Store verified slip to prevent reuse
+    // Execute DB operations in parallel
+    const [updateResult] = await Promise.all([
+      supabase.from('bookings').update(updateData).eq('id', bookingId),
       supabase.from('verified_slips').insert({
-        trans_ref: verificationResult?.data?.transRef || null,
+        trans_ref: null,
         slip_url_hash: slipUrlHash,
         booking_id: bookingId,
         tenant_id: tenantId,
-        amount: verificationResult?.data?.amount?.amount || expectedAmount,
+        amount: expectedAmount,
         slip_url: slipUrl,
-        easyslip_data: verificationResult?.data || null
+        easyslip_data: null
       }).catch(err => logger.error('Failed to store verified slip', err)),
-      
-      // 3. Log payment verification to audit log
       adminClient.from('audit_logs').insert({
         action: 'payment.verify',
         category: 'user',
@@ -236,11 +166,7 @@ export async function POST(request: NextRequest) {
         target_id: bookingId,
         target_name: booking.room?.name || 'Room',
         tenant_id: tenantId,
-        details: { 
-          amount: expectedAmount,
-          checkIn: booking.check_in, 
-          checkOut: booking.check_out
-        },
+        details: { amount: expectedAmount, checkIn: booking.check_in, checkOut: booking.check_out },
         success: true
       }).catch(err => logger.error('Failed to log payment verification', err))
     ])
@@ -393,12 +319,77 @@ export async function POST(request: NextRequest) {
     // Fire and forget - don't await
     sendNotificationsAsync()
 
-    // Return success immediately - user doesn't need to wait for notifications
+    // STEP 2: Background EasySlip verification (runs AFTER response sent)
+    if (shouldVerifyWithEasySlip) {
+      // This runs in background - user doesn't wait!
+      const runBackgroundVerification = async () => {
+        try {
+          logger.info('Starting background EasySlip verification', { bookingId })
+          
+          const verificationResult = await verifySlip({
+            image: slipUrl,
+            apiKey: easySlipApiKey!,
+            expectedAmount: expectedAmount,
+            amountTolerance: 1
+          })
+
+          logger.info('EasySlip verification complete', { 
+            bookingId, 
+            success: verificationResult.success,
+            verified: verificationResult.verified 
+          })
+
+          // Update verified_slips with result
+          await supabase
+            .from('verified_slips')
+            .update({
+              easyslip_data: verificationResult?.data || null,
+              trans_ref: verificationResult?.data?.transRef || null
+            })
+            .eq('booking_id', bookingId)
+
+          // Check for FRAUD
+          const isFraud = !verificationResult.success && verificationResult.error?.code &&
+            ['NOT_A_SLIP', 'INVALID_IMAGE', 'DUPLICATE_SLIP'].includes(verificationResult.error.code)
+          const isAmountMismatch = verificationResult.success && !verificationResult.verified
+
+          if (isFraud || isAmountMismatch) {
+            const failReason = isAmountMismatch
+              ? `ยอดไม่ตรง: คาดหวัง ${expectedAmount}, ได้รับ ${verificationResult.data?.amount?.amount}`
+              : (verificationResult.error?.message || 'สลิปไม่ถูกต้อง')
+
+            logger.warn('FRAUD DETECTED - Auto-cancelling', { bookingId, reason: failReason })
+
+            // Cancel booking
+            await supabase
+              .from('bookings')
+              .update({ status: 'cancelled', notes: `[Auto-cancelled] ${failReason}` })
+              .eq('id', bookingId)
+
+            // Notify host via LINE
+            if (settings.payment?.line_channel_access_token && settings.payment?.line_user_id) {
+              await sendLineMessage({
+                channelAccessToken: settings.payment.line_channel_access_token,
+                userId: settings.payment.line_user_id,
+                message: `🚨 สลิปปลอม - ยกเลิกอัตโนมัติ\n📋 ${bookingId.slice(0,8).toUpperCase()}\n❌ ${failReason}`
+              }).catch(err => logger.error('LINE alert failed', err))
+            }
+          }
+        } catch (err) {
+          logger.error('Background verification error', err)
+        }
+      }
+      
+      // Fire and forget
+      runBackgroundVerification()
+    }
+
+    // Return success immediately - user doesn't wait for EasySlip!
     return NextResponse.json({
       success: true,
       verified: true,
       bookingId,
-      paymentRef: verificationResult?.data?.transRef || null
+      paymentRef: null
     })
 
   } catch (error) {

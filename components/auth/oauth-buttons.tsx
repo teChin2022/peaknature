@@ -21,7 +21,9 @@ export function OAuthButtons({ tenantSlug, redirectTo, mode = 'login' }: OAuthBu
     setError(null)
 
     try {
-      const callbackUrl = `${window.location.origin}/${tenantSlug}/auth/callback?next=${encodeURIComponent(redirectTo || `/${tenantSlug}`)}`
+      // Use NEXT_PUBLIC_APP_URL if available, otherwise fallback to window.location.origin
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const callbackUrl = `${baseUrl}/${tenantSlug}/auth/callback?next=${encodeURIComponent(redirectTo || `/${tenantSlug}`)}`
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

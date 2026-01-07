@@ -57,7 +57,9 @@ export function RegisterForm({ tenant, redirectTo }: RegisterFormProps) {
     setError(null)
 
     try {
-      const redirectUrl = `${window.location.origin}/${tenant.slug}/auth/callback?next=${encodeURIComponent(redirectTo || `/${tenant.slug}`)}`
+      // Use NEXT_PUBLIC_APP_URL if available, otherwise fallback to window.location.origin
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const redirectUrl = `${baseUrl}/${tenant.slug}/auth/callback?next=${encodeURIComponent(redirectTo || `/${tenant.slug}`)}`
       console.log('Registration redirect URL:', redirectUrl)
       
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
