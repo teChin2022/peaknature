@@ -12,7 +12,8 @@ export async function POST(
   await supabase.auth.signOut()
   
   // Redirect to tenant's landing page after sign out
-  const response = NextResponse.redirect(new URL(`/${slug}`, request.url))
+  // Use 303 See Other to ensure the browser uses GET for the redirect (POST-Redirect-GET pattern)
+  const response = NextResponse.redirect(new URL(`/${slug}`, request.url), 303)
   
   // Determine if we're on HTTPS (production)
   const isSecure = request.url.startsWith('https')

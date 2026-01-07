@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
   await supabase.auth.signOut()
   
   // Redirect to login page - use request.url to get the correct domain
-  const response = NextResponse.redirect(new URL('/admin/login', request.url))
+  // Use 303 See Other to ensure the browser uses GET for the redirect (POST-Redirect-GET pattern)
+  const response = NextResponse.redirect(new URL('/admin/login', request.url), 303)
   
   // Determine if we're on HTTPS (production)
   const isSecure = request.url.startsWith('https')
