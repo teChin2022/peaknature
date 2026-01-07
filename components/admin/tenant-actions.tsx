@@ -116,7 +116,6 @@ export function TenantActions({ tenant }: TenantActionsProps) {
   // Update tenant
   const handleUpdate = async () => {
     setIsLoading(true)
-    const oldData = { name: tenant.name, slug: tenant.slug, primary_color: tenant.primary_color, plan: tenant.plan }
     
     try {
       // Use API route for admin operations (bypasses RLS issues)
@@ -137,28 +136,7 @@ export function TenantActions({ tenant }: TenantActionsProps) {
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        logAdminAction(AuditActions.TENANT_UPDATE, 
-          { type: 'tenant', id: tenant.id, name: tenant.name },
-          { success: false, errorMessage: result.error || 'Unknown error' }
-        )
         throw new Error(result.error)
-      }
-      
-      // Log successful update
-      logAdminAction(AuditActions.TENANT_UPDATE, 
-        { type: 'tenant', id: tenant.id, name: editData.name },
-        { oldValue: oldData, newValue: editData }
-      )
-      
-      // Log plan change separately if changed
-      if (oldData.plan !== editData.plan) {
-        logAdminAction(AuditActions.TENANT_PLAN_CHANGE, 
-          { type: 'tenant', id: tenant.id, name: editData.name },
-          { 
-            oldValue: { plan: oldData.plan },
-            newValue: { plan: editData.plan }
-          }
-        )
       }
       
       setEditDialog(false)
