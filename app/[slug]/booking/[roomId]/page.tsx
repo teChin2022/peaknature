@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Users, Clock, Shield, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Calendar, Users, Clock, Shield, AlertTriangle, QrCode } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { BookingConfirmForm } from '@/components/booking/booking-confirm-form'
@@ -11,6 +11,7 @@ import { PaymentSectionWrapper } from '@/components/booking/payment-section-wrap
 import { differenceInDays, format, parseISO } from 'date-fns'
 import { Tenant, Room, TenantSettings, defaultTenantSettings } from '@/types/database'
 import { formatPrice } from '@/lib/currency'
+import { getLocaleFromCookies, getTranslations } from '@/lib/i18n-server'
 
 // Disable caching to always get fresh booking data
 export const dynamic = 'force-dynamic'
@@ -106,6 +107,11 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
     notFound()
   }
 
+  // Get translations
+  const locale = await getLocaleFromCookies()
+  const messages = await getTranslations(locale)
+  const t = messages.booking
+
   const { tenant, room, user, profile, hasBlockedDates, hasConflictingBookings } = data
   const settings = (tenant.settings as TenantSettings) || defaultTenantSettings
   const currency = settings.currency || 'USD'
@@ -141,14 +147,14 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
             className="inline-flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to room
+            {t.backToRoom}
           </Link>
         </div>
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-8 lg:px-8">
         <h1 className="text-3xl font-bold text-stone-900 mb-8">
-          Confirmation and payment
+          {t.confirmAndPay}
         </h1>
 
         {/* Profile Completion Banner */}
@@ -157,15 +163,15 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h3 className="font-medium text-amber-900">Complete your profile to book</h3>
+                <h3 className="font-medium text-amber-900">{t.completeProfile}</h3>
                 <p className="text-sm text-amber-700 mt-1">
-                  Please add your phone number and location to proceed with the booking. This is required for booking confirmations and cancellations.
+                  {t.completeProfileDesc}
                 </p>
                 <Link
                   href={`/${tenant.slug}/complete-profile?next=${encodeURIComponent(`/${slug}/booking/${roomId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`)}`}
                   className="inline-flex items-center gap-1 mt-3 text-sm font-medium text-amber-900 hover:text-amber-700 underline"
                 >
-                  Complete Profile Now
+                  {t.completeProfileNow}
                 </Link>
               </div>
             </div>
@@ -189,12 +195,12 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
               {/* Trip Details */}
               <Card className="border-stone-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">Your trip</CardTitle>
+                  <CardTitle className="text-lg">{t.yourTrip}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-stone-900">Dates</div>
+                      <div className="font-medium text-stone-900">{t.dates}</div>
                       <div className="text-stone-600">
                         {format(checkInDate, 'MMM d')} – {format(checkOutDate, 'MMM d, yyyy')}
                       </div>
@@ -204,21 +210,21 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
                       className="text-sm font-medium underline"
                       style={{ color: tenant.primary_color }}
                     >
-                      Edit
+                      {t.edit}
                     </Link>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-stone-900">Guests</div>
-                      <div className="text-stone-600">{guestCount} guest{guestCount > 1 ? 's' : ''}</div>
+                      <div className="font-medium text-stone-900">{t.guests}</div>
+                      <div className="text-stone-600">{guestCount} {guestCount > 1 ? t.guests : t.guest}</div>
                     </div>
                     <Link 
                       href={`/${tenant.slug}/rooms/${roomId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`}
                       className="text-sm font-medium underline"
                       style={{ color: tenant.primary_color }}
                     >
-                      Edit
+                      {t.edit}
                     </Link>
                   </div>
                 </CardContent>
@@ -230,7 +236,7 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
                 <Card className="border-stone-200">
                   <CardHeader>
                     <CardTitle className="text-lg">
-                      {user ? 'Contact information' : 'Log in or sign up to book'}
+                      {user ? t.contactInformation : t.loginOrSignupToBook}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -265,13 +271,13 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <QrCode className="h-5 w-5" />
-                      Payment
+                      {t.payment}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                       <p className="text-sm text-amber-800">
-                        Payment will be collected upon confirmation. You won&apos;t be charged yet.
+                        {t.paymentWillBeCollected}
                       </p>
                     </div>
                   </CardContent>
@@ -282,8 +288,8 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
               <div className="flex items-start gap-3 p-4 bg-stone-100 rounded-lg">
                 <Shield className="h-5 w-5 text-stone-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-stone-600">
-                  <p className="font-medium text-stone-900 mb-1">Cancellation policy</p>
-                  <p>Free cancellation up to 24 hours before check-in. After that, the first night is non-refundable.</p>
+                  <p className="font-medium text-stone-900 mb-1">{t.cancellationPolicy}</p>
+                  <p>{t.cancellationPolicyDesc}</p>
                 </div>
               </div>
             </ReservationLockChecker>
@@ -327,14 +333,14 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
                 <div className="py-4 border-b border-stone-200">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <div className="text-stone-500 mb-1">Check-in</div>
+                      <div className="text-stone-500 mb-1">{t.checkIn}</div>
                       <div className="font-medium text-stone-900 flex items-center gap-1">
                         <Clock className="h-4 w-4" />
                         {room.check_in_time}
                       </div>
                     </div>
                     <div>
-                      <div className="text-stone-500 mb-1">Check-out</div>
+                      <div className="text-stone-500 mb-1">{t.checkOut}</div>
                       <div className="font-medium text-stone-900 flex items-center gap-1">
                         <Clock className="h-4 w-4" />
                         {room.check_out_time}
@@ -345,10 +351,10 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
 
                 {/* Price Breakdown */}
                 <div className="py-6 border-b border-stone-200">
-                  <h4 className="font-semibold text-stone-900 mb-4">Price details</h4>
+                  <h4 className="font-semibold text-stone-900 mb-4">{t.priceDetails}</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between text-stone-600">
-                      <span>{formatPrice(room.base_price, currency)} × {numberOfNights} night{numberOfNights > 1 ? 's' : ''}</span>
+                      <span>{formatPrice(room.base_price, currency)} × {numberOfNights} {numberOfNights > 1 ? t.nights : t.night}</span>
                       <span>{formatPrice(subtotal, currency)}</span>
                     </div>
                   </div>
@@ -357,7 +363,7 @@ export default async function BookingPage({ params, searchParams }: BookingPageP
                 {/* Total */}
                 <div className="pt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-stone-900">Total ({currency})</span>
+                    <span className="text-lg font-semibold text-stone-900">{t.total} ({currency})</span>
                     <span className="text-2xl font-bold" style={{ color: tenant.primary_color }}>
                       {formatPrice(total, currency)}
                     </span>

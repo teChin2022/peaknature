@@ -5,6 +5,7 @@ import { Clock, Bell, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 interface WaitingQueueProps {
   roomId: string
@@ -24,6 +25,7 @@ export function WaitingQueue({
   onAvailable 
 }: WaitingQueueProps) {
   const supabase = createClient()
+  const t = useTranslations('booking')
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
   const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false)
   const [isOnWaitlist, setIsOnWaitlist] = useState(false)
@@ -131,17 +133,17 @@ export function WaitingQueue({
             <CheckCircle2 className="h-8 w-8 text-green-600" />
           </div>
           <h3 className="text-lg font-semibold text-green-900 mb-2">
-            Dates Available!
+            {t('datesAvailable')}
           </h3>
           <p className="text-green-700 mb-4">
-            The previous guest didn&apos;t complete payment. You can now proceed with your booking!
+            {t('previousGuestDidntPay')}
           </p>
           <Button 
             onClick={() => window.location.reload()} 
             className="text-white"
             style={{ backgroundColor: primaryColor }}
           >
-            Continue Booking
+            {t('continueBooking')}
           </Button>
         </CardContent>
       </Card>
@@ -159,16 +161,16 @@ export function WaitingQueue({
             <Clock className="h-8 w-8" style={{ color: primaryColor }} />
           </div>
           <h3 className="text-lg font-semibold text-stone-900 mb-2">
-            Another Guest is Completing Payment
+            {t('anotherGuestPaying')}
           </h3>
           <p className="text-stone-600 mb-4">
-            These dates are currently held by another guest. Please wait or join the waitlist.
+            {t('waitingForDates')}
           </p>
         </div>
 
         {/* Countdown */}
         <div className="bg-white rounded-lg p-4 mb-4 text-center">
-          <p className="text-sm text-stone-500 mb-1">Time remaining</p>
+          <p className="text-sm text-stone-500 mb-1">{t('timeRemaining')}</p>
           <p 
             className="text-3xl font-mono font-bold"
             style={{ color: timeRemaining <= 60 ? '#ef4444' : primaryColor }}
@@ -176,7 +178,7 @@ export function WaitingQueue({
             {formatTime(timeRemaining)}
           </p>
           <p className="text-xs text-stone-400 mt-1">
-            Dates will be released if payment is not completed
+            {t('datesReleasedIfNoPayment')}
           </p>
         </div>
 
@@ -184,7 +186,7 @@ export function WaitingQueue({
         {!isOnWaitlist ? (
           <div className="text-center">
             <p className="text-sm text-stone-600 mb-3">
-              Get notified when these dates become available
+              {t('getNotifiedWhenAvailable')}
             </p>
             <Button
               onClick={joinWaitlist}
@@ -197,24 +199,24 @@ export function WaitingQueue({
               ) : (
                 <Bell className="h-4 w-4" />
               )}
-              Notify Me When Available
+              {t('notifyMeWhenAvailable')}
             </Button>
           </div>
         ) : (
           <div className="bg-green-100 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center gap-2 text-green-700">
               <CheckCircle2 className="h-5 w-5" />
-              <span className="font-medium">You&apos;re on the waitlist!</span>
+              <span className="font-medium">{t('youreOnWaitlist')}</span>
             </div>
             <p className="text-sm text-green-600 mt-1">
-              We&apos;ll notify you by email if these dates become available.
+              {t('wellNotifyByEmail')}
             </p>
           </div>
         )}
 
         {/* Auto-refresh note */}
         <p className="text-xs text-center text-stone-400 mt-4">
-          This page will automatically update when the countdown ends
+          {t('pageAutoUpdate')}
         </p>
       </CardContent>
     </Card>

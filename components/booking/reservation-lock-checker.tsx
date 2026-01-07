@@ -6,6 +6,7 @@ import { Clock, Loader2, Timer, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { User } from '@supabase/supabase-js'
+import { useTranslations } from 'next-intl'
 
 interface ReservationLockCheckerProps {
   roomId: string
@@ -31,6 +32,7 @@ export function ReservationLockChecker({
   children
 }: ReservationLockCheckerProps) {
   const router = useRouter()
+  const t = useTranslations('booking')
   
   const [isChecking, setIsChecking] = useState(true)
   const [isLockedByOther, setIsLockedByOther] = useState(false)
@@ -175,17 +177,17 @@ export function ReservationLockChecker({
               <Clock className="h-8 w-8 text-red-600" />
             </div>
             <h3 className="text-lg font-semibold text-red-900 mb-2">
-              Time Expired
+              {t('timeExpired')}
             </h3>
             <p className="text-red-700 mb-4">
-              Your reservation time has expired. Please try again.
+              {t('reservationTimeExpired')}
             </p>
             <Button 
               onClick={() => router.push(`/${tenantSlug}/rooms/${roomId}`)} 
               className="text-white"
               style={{ backgroundColor: primaryColor }}
             >
-              Back to Room
+              {t('backToRoom')}
             </Button>
           </CardContent>
         </Card>
@@ -203,17 +205,17 @@ export function ReservationLockChecker({
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <h3 className="text-lg font-semibold text-green-900 mb-2">
-              Dates Available!
+              {t('datesAvailable')}
             </h3>
             <p className="text-green-700 mb-4">
-              The previous guest didn&apos;t complete payment. You can now proceed with your booking!
+              {t('previousGuestDidntPay')}
             </p>
             <Button 
               onClick={() => window.location.reload()} 
               className="text-white"
               style={{ backgroundColor: primaryColor }}
             >
-              Continue Booking
+              {t('continueBooking')}
             </Button>
           </CardContent>
         </Card>
@@ -235,10 +237,10 @@ export function ReservationLockChecker({
                 <Clock className="h-8 w-8" style={{ color: primaryColor }} />
               </div>
               <h3 className="text-lg font-semibold text-stone-900 mb-2">
-                Another Guest is Completing Payment
+                {t('anotherGuestPaying')}
               </h3>
               <p className="text-stone-600">
-                These dates are currently held by another guest. Please try again later.
+                {t('datesHeldByAnother')}
               </p>
             </div>
           </CardContent>
@@ -262,17 +264,17 @@ export function ReservationLockChecker({
                 <Timer className="h-5 w-5" style={{ color: myTimeRemaining <= 60 ? '#ef4444' : primaryColor }} />
               </div>
               <div>
-                <p className="font-medium text-stone-900">Complete your booking</p>
+                <p className="font-medium text-stone-900">{t('completeYourBooking')}</p>
                 <p className="text-sm text-stone-600">
                   {myTimeRemaining <= 60 
-                    ? 'Hurry! Time is running out' 
-                    : 'Complete payment before time expires'
+                    ? t('hurryTimeRunning')
+                    : t('completePaymentBefore')
                   }
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-stone-500">Time remaining</p>
+              <p className="text-xs text-stone-500">{t('timeRemaining')}</p>
               <p 
                 className="text-2xl font-mono font-bold"
                 style={{ color: myTimeRemaining <= 60 ? '#ef4444' : primaryColor }}

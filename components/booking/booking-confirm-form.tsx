@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { Tenant, Room, TenantSettings, defaultTenantSettings } from '@/types/database'
 import type { User } from '@supabase/supabase-js'
+import { useTranslations } from 'next-intl'
 
 const guestBookingSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -58,6 +59,7 @@ export function BookingConfirmForm({
 }: BookingConfirmFormProps) {
   const router = useRouter()
   const supabase = createClient()
+  const t = useTranslations('booking')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +125,7 @@ export function BookingConfirmForm({
       .lt('date', checkOut)
     
     if (blockedDates && blockedDates.length > 0) {
-      throw new Error('Some dates in your selection are no longer available. Please choose different dates.')
+      throw new Error(t('dateErrors.notAvailableAnymore'))
     }
 
     // Check for existing bookings (double-booking prevention)
@@ -138,7 +140,7 @@ export function BookingConfirmForm({
       .limit(1)
     
     if (existingBookings && existingBookings.length > 0) {
-      throw new Error('This room is no longer available for the selected dates. Please choose different dates.')
+      throw new Error(t('dateErrors.roomNotAvailable'))
     }
 
     // Determine booking status based on payment configuration
@@ -294,7 +296,7 @@ export function BookingConfirmForm({
               <div>
                 <div className="font-medium text-green-900">{user.email}</div>
                 <div className="text-sm text-green-700">
-                  Ready to complete payment
+                  {t('readyToComplete')}
                 </div>
               </div>
             </div>
@@ -302,23 +304,23 @@ export function BookingConfirmForm({
 
           {/* Notes input for transport and special requests */}
           <div className="space-y-2">
-            <Label htmlFor="notes-promptpay">Special requests (optional)</Label>
+            <Label htmlFor="notes-promptpay">{t('specialRequestsOptional')}</Label>
             <div className="relative">
               <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
               <Textarea
                 id="notes-promptpay"
-                placeholder="Any special requests or notes for your stay..."
+                placeholder={t('specialRequestsPlaceholder')}
                 className="pl-10 min-h-[100px]"
                 {...userForm.register('notes')}
               />
             </div>
             <p className="text-xs text-stone-500">
-              Transport requests and special needs will be included with your booking.
+              {t('transportRequestsIncluded')}
             </p>
           </div>
 
           <p className="text-sm text-stone-600">
-            Scan the QR code above to pay, then upload your payment slip to confirm your booking.
+            {t('scanQRThenUpload')}
           </p>
         </div>
       )
@@ -336,17 +338,17 @@ export function BookingConfirmForm({
         <div className="p-4 bg-stone-50 rounded-lg">
           <div className="font-medium text-stone-900">{user.email}</div>
           <div className="text-sm text-stone-500 mt-1">
-            Logged in as guest
+            {t('loggedInAsGuest')}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="notes">Special requests (optional)</Label>
+          <Label htmlFor="notes">{t('specialRequestsOptional')}</Label>
           <div className="relative">
             <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
             <Textarea
               id="notes"
-              placeholder="Any special requests or notes for your stay..."
+              placeholder={t('specialRequestsPlaceholder')}
               className="pl-10 min-h-[100px]"
               {...userForm.register('notes')}
             />
@@ -362,10 +364,10 @@ export function BookingConfirmForm({
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Confirming...
+              {t('confirming')}
             </>
           ) : (
-            'Confirm booking'
+            t('confirmBooking')
           )}
         </Button>
       </form>
@@ -392,7 +394,7 @@ export function BookingConfirmForm({
               : 'text-stone-600 hover:text-stone-900'
           }`}
         >
-          New guest
+          {t('newGuest')}
         </button>
         <button
           type="button"
@@ -403,13 +405,13 @@ export function BookingConfirmForm({
               : 'text-stone-600 hover:text-stone-900'
           }`}
         >
-          Returning guest
+          {t('returningGuest')}
         </button>
       </div>
 
       {mode === 'register' && (
         <div className="space-y-2">
-          <Label htmlFor="fullName">Full Name</Label>
+          <Label htmlFor="fullName">{t('fullName')}</Label>
           <div className="relative">
             <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
             <Input
@@ -427,7 +429,7 @@ export function BookingConfirmForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t('email')}</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <Input
@@ -444,7 +446,7 @@ export function BookingConfirmForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t('password')}</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <Input
@@ -470,7 +472,7 @@ export function BookingConfirmForm({
       {mode === 'register' && (
         <div className="space-y-2">
           <Label htmlFor="phone">
-            Phone Number <span className="text-red-500">*</span>
+            {t('phoneNumber')} <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
@@ -489,12 +491,12 @@ export function BookingConfirmForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Special requests (optional)</Label>
+        <Label htmlFor="notes">{t('specialRequestsOptional')}</Label>
         <div className="relative">
           <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
           <Textarea
             id="notes"
-            placeholder="Any special requests or notes for your stay..."
+            placeholder={t('specialRequestsPlaceholder')}
             className="pl-10 min-h-[80px]"
             {...guestForm.register('notes')}
           />
@@ -510,12 +512,12 @@ export function BookingConfirmForm({
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {mode === 'register' ? 'Creating account...' : 'Signing in...'}
+            {mode === 'register' ? t('creatingAccount') : t('signingIn')}
           </>
         ) : (
           hasPromptPay 
-            ? (mode === 'register' ? 'Create account to continue' : 'Sign in to continue')
-            : (mode === 'register' ? 'Sign up and book' : 'Sign in and book')
+            ? (mode === 'register' ? t('createAccountToContinue') : t('signInToContinue'))
+            : (mode === 'register' ? t('signUpAndBook') : t('signInAndBook'))
         )}
       </Button>
     </form>

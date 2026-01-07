@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { formatPrice } from '@/lib/currency'
+import { useTranslations } from 'next-intl'
 
 interface PromptPayQRCodeProps {
   qrCodeUrl: string
@@ -18,6 +19,7 @@ export function PromptPayQRCode({
   currency,
   primaryColor
 }: PromptPayQRCodeProps) {
+  const t = useTranslations('booking')
   // Format amount for Thai Baht
   const formattedAmount = currency === 'THB' 
     ? new Intl.NumberFormat('th-TH', {
@@ -44,7 +46,7 @@ export function PromptPayQRCode({
 
       {/* Amount */}
       <div className="text-center">
-        <p className="text-sm text-stone-500 mb-1">Amount to pay</p>
+        <p className="text-sm text-stone-500 mb-1">{t('amountToPay')}</p>
         <p className="text-2xl font-bold" style={{ color: primaryColor }}>
           {formattedAmount}
         </p>
@@ -54,7 +56,7 @@ export function PromptPayQRCode({
       {promptpayName && (
         <div className="bg-stone-50 rounded-lg p-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-stone-500">Pay to</span>
+            <span className="text-stone-500">{t('payTo')}</span>
             <span className="font-medium text-stone-900">{promptpayName}</span>
           </div>
         </div>
@@ -62,7 +64,7 @@ export function PromptPayQRCode({
 
       {/* Instructions */}
       <p className="text-xs text-center text-stone-500">
-        Scan with your banking app to pay
+        {t('scanWithBankingApp')}
       </p>
     </div>
   )

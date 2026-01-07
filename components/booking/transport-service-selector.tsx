@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TenantSettings, CurrencyCode } from '@/types/database'
 import { formatPrice } from '@/lib/currency'
+import { useTranslations } from 'next-intl'
 
 export interface TransportSelections {
   pickupRequested: boolean
@@ -35,6 +36,7 @@ export function TransportServiceSelector({
   primaryColor,
   onChange,
 }: TransportServiceSelectorProps) {
+  const t = useTranslations('booking')
   const transport = settings.transport || {
     pickup_enabled: false,
     pickup_price: 0,
@@ -55,18 +57,18 @@ export function TransportServiceSelector({
   const generateFormattedNote = (): string => {
     if (!pickupRequested && !dropoffRequested) return ''
     
-    let note = '🚗 TRANSPORT SERVICES REQUESTED:\n'
+    let note = `${t('transportNote')}\n`
     
     if (pickupRequested) {
-      const location = pickupLocation || 'Location to be confirmed'
-      const time = pickupTime || 'Time to be confirmed'
-      note += `• Pickup: ${location} at ${time} (+${formatPrice(transport.pickup_price, currency)})\n`
+      const location = pickupLocation || t('locationToBeConfirmed')
+      const time = pickupTime || t('timeToBeConfirmed')
+      note += `• ${t('pickupService')}: ${location} at ${time} (+${formatPrice(transport.pickup_price, currency)})\n`
     }
     
     if (dropoffRequested) {
-      const location = dropoffLocation || 'Location to be confirmed'
-      const time = dropoffTime || 'Time to be confirmed'
-      note += `• Drop-off: ${location} at ${time} (+${formatPrice(transport.dropoff_price, currency)})\n`
+      const location = dropoffLocation || t('locationToBeConfirmed')
+      const time = dropoffTime || t('timeToBeConfirmed')
+      note += `• ${t('dropoffService')}: ${location} at ${time} (+${formatPrice(transport.dropoff_price, currency)})\n`
     }
     
     return note
@@ -97,8 +99,8 @@ export function TransportServiceSelector({
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-medium flex items-center gap-2">
           <Car className="h-5 w-5" style={{ color: primaryColor }} />
-          Transport Services
-          <span className="text-xs font-normal text-stone-500">(Optional)</span>
+          {t('transportServices')}
+          <span className="text-xs font-normal text-stone-500">({t('optional')})</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -117,13 +119,13 @@ export function TransportServiceSelector({
                   htmlFor="pickup" 
                   className="text-sm font-medium cursor-pointer flex items-center justify-between"
                 >
-                  <span>Pickup Service</span>
+                  <span>{t('pickupService')}</span>
                   <span className="font-semibold" style={{ color: primaryColor }}>
                     +{formatPrice(transport.pickup_price, currency)}
                   </span>
                 </Label>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {transport.pickup_description || 'From airport/train station'}
+                  {transport.pickup_description || t('fromAirport')}
                 </p>
               </div>
             </div>
@@ -133,11 +135,11 @@ export function TransportServiceSelector({
                 <div className="space-y-1.5">
                   <Label htmlFor="pickup_location" className="text-xs flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    Pickup Location
+                    {t('pickupLocationLabel')}
                   </Label>
                   <Input
                     id="pickup_location"
-                    placeholder="e.g., Suvarnabhumi Airport, Gate 3"
+                    placeholder={t('pickupLocationPlaceholder')}
                     value={pickupLocation}
                     onChange={(e) => setPickupLocation(e.target.value)}
                     className="text-sm h-9"
@@ -146,7 +148,7 @@ export function TransportServiceSelector({
                 <div className="space-y-1.5">
                   <Label htmlFor="pickup_time" className="text-xs flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    Arrival Time
+                    {t('arrivalTime')}
                   </Label>
                   <Input
                     id="pickup_time"
@@ -181,13 +183,13 @@ export function TransportServiceSelector({
                   htmlFor="dropoff" 
                   className="text-sm font-medium cursor-pointer flex items-center justify-between"
                 >
-                  <span>Drop-off Service</span>
+                  <span>{t('dropoffService')}</span>
                   <span className="font-semibold" style={{ color: primaryColor }}>
                     +{formatPrice(transport.dropoff_price, currency)}
                   </span>
                 </Label>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {transport.dropoff_description || 'To airport/train station'}
+                  {transport.dropoff_description || t('toAirport')}
                 </p>
               </div>
             </div>
@@ -197,11 +199,11 @@ export function TransportServiceSelector({
                 <div className="space-y-1.5">
                   <Label htmlFor="dropoff_location" className="text-xs flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    Drop-off Location
+                    {t('dropoffLocationLabel')}
                   </Label>
                   <Input
                     id="dropoff_location"
-                    placeholder="e.g., Don Mueang Airport, Terminal 2"
+                    placeholder={t('dropoffLocationPlaceholder')}
                     value={dropoffLocation}
                     onChange={(e) => setDropoffLocation(e.target.value)}
                     className="text-sm h-9"
@@ -210,7 +212,7 @@ export function TransportServiceSelector({
                 <div className="space-y-1.5">
                   <Label htmlFor="dropoff_time" className="text-xs flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    Departure Time
+                    {t('departureTime')}
                   </Label>
                   <Input
                     id="dropoff_time"
@@ -229,7 +231,7 @@ export function TransportServiceSelector({
         {(pickupRequested || dropoffRequested) && (
           <div className="pt-3 border-t border-stone-200">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-stone-600">Transport Total</span>
+              <span className="text-stone-600">{t('transportTotalLabel')}</span>
               <span className="font-semibold" style={{ color: primaryColor }}>
                 +{formatPrice(
                   (pickupRequested ? transport.pickup_price : 0) + 

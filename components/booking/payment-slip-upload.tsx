@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { QRUploadModal } from './qr-upload-modal'
 import { useTranslations } from 'next-intl'
-import { useLanguage } from '@/components/providers/language-provider'
 
 // Generate SHA-256 hash of file content for duplicate detection
 async function generateFileHash(file: File): Promise<string> {
@@ -54,7 +53,7 @@ export function PaymentSlipUpload({
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const t = useTranslations('booking')
-  const { locale } = useLanguage()
+  const tPage = useTranslations('paymentPage')
   
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
@@ -78,13 +77,13 @@ export function PaymentSlipUpload({
   const handleFile = useCallback(async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file')
+      setError(tPage('errorImageOnly'))
       return
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setError('Image must be less than 10MB')
+      setError(tPage('errorMaxSize'))
       return
     }
 
@@ -106,7 +105,7 @@ export function PaymentSlipUpload({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         console.error('[PaymentSlipUpload] User not authenticated')
-        setError('Please log in first before uploading payment slip')
+        setError(t('pleaseLoginFirst'))
         setPreview(null)
         setIsUploading(false)
         return
@@ -148,7 +147,7 @@ export function PaymentSlipUpload({
 
     } catch (err) {
       console.error('[PaymentSlipUpload] Upload error:', err)
-      setError('An error occurred. Please try again.')
+      setError(t('anErrorOccurred'))
       setPreview(null)
     } finally {
       setIsUploading(false)
@@ -158,7 +157,7 @@ export function PaymentSlipUpload({
   // Step 2: Handle confirm button click (create booking + verify)
   const handleConfirmPayment = useCallback(async () => {
     if (!slipUrl) {
-      setError('Please upload your payment slip first')
+      setError(t('pleaseUploadSlipFirst'))
       return
     }
 
@@ -174,7 +173,7 @@ export function PaymentSlipUpload({
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
-        setError('Please log in or create an account first using the form above')
+        setError(t('pleaseLoginOrCreateAccount'))
         setIsVerifying(false)
         return
       }
@@ -213,7 +212,7 @@ export function PaymentSlipUpload({
 
         if (bookingError) {
           if (bookingError.message.includes('overlap') || bookingError.message.includes('Booking dates overlap')) {
-            setError('These dates are no longer available. Another guest has just booked them. Please choose different dates.')
+            setError(t('datesNoLongerAvailable'))
           } else {
             setError(bookingError.message)
           }
@@ -232,7 +231,7 @@ export function PaymentSlipUpload({
       }
 
       if (!bookingToUse) {
-        setError('Failed to create booking. Please try again.')
+        setError(t('failedToCreateBooking'))
         setIsVerifying(false)
         return
       }
@@ -272,7 +271,7 @@ export function PaymentSlipUpload({
       // Handle rate limiting
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After') || '60'
-        setError(`Too many verification attempts. Please wait ${retryAfter} seconds and try again.`)
+        setError(t('tooManyAttempts', { seconds: retryAfter }))
         setIsVerifying(false)
         return
       }
@@ -282,7 +281,7 @@ export function PaymentSlipUpload({
       if (!result.success) {
         // Delete the booking since verification failed
         await deleteBookingOnFailure()
-        setError(result.error || 'Payment verification failed. Please try again or contact the host.')
+        setError(result.error || t('verificationFailed'))
         setIsVerifying(false)
         return
       }
@@ -306,10 +305,10 @@ export function PaymentSlipUpload({
           .eq('id', bookingToUse.id)
           .eq('status', 'pending')
       }
-      setError('An error occurred. Please try again.')
+      setError(t('anErrorOccurred'))
       setIsVerifying(false)
     }
-  }, [supabase, slipUrl, slipContentHash, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes])
+  }, [supabase, slipUrl, slipContentHash, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes, t])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -367,10 +366,10 @@ export function PaymentSlipUpload({
           <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
         </div>
         <p className="text-lg font-semibold text-stone-900 mb-2">
-          {locale === 'th' ? 'ยืนยันการชำระเงินแล้ว!' : 'Payment Verified!'}
+          {t('paymentVerified')}
         </p>
         <p className="text-sm text-stone-600 mb-4">
-          {locale === 'th' ? 'การจองของคุณได้รับการยืนยันแล้ว' : 'Your booking has been confirmed.'}
+          {t('bookingHasBeenConfirmed')}
         </p>
         <Loader2 className="h-5 w-5 animate-spin mx-auto text-stone-400" />
         <p className="text-xs text-stone-500 mt-2">{t('redirecting')}</p>
@@ -385,7 +384,7 @@ export function PaymentSlipUpload({
         <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" style={{ color: primaryColor }} />
         <p className="text-lg font-medium text-stone-900">{t('verifying')}</p>
         <p className="text-sm text-stone-500 mt-2">
-          {locale === 'th' ? 'กรุณารอสักครู่' : 'This may take a moment'}
+          {t('verifyingDesc')}
         </p>
       </div>
     )
@@ -417,14 +416,14 @@ export function PaymentSlipUpload({
         {isUploading && (
           <div className="flex items-center justify-center gap-2 text-stone-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Uploading...</span>
+            <span className="text-sm">{t('uploadingSlip')}</span>
           </div>
         )}
 
         {slipUrl && !isUploading && !error && (
           <div className="flex items-center gap-2 text-green-700 text-sm">
             <CheckCircle2 className="h-4 w-4" />
-            <span>Slip uploaded successfully. Click &quot;Confirm Payment&quot; to complete your booking.</span>
+            <span>{t('slipUploadedSuccess')}</span>
           </div>
         )}
 
@@ -433,7 +432,7 @@ export function PaymentSlipUpload({
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-800">Error</p>
+                <p className="text-sm font-medium text-red-800">{t('error')}</p>
                 <p className="text-sm text-red-600 mt-1">{error}</p>
               </div>
             </div>
@@ -446,7 +445,7 @@ export function PaymentSlipUpload({
             variant="outline" 
             className="w-full"
           >
-            Try Again with Different Image
+            {t('tryAgainDifferent')}
           </Button>
         )}
 
@@ -458,7 +457,7 @@ export function PaymentSlipUpload({
           disabled={!slipUrl || isUploading}
         >
           <Send className="h-5 w-5" />
-          {locale === 'th' ? 'ยืนยันการชำระเงิน' : 'Confirm Payment'}
+          {t('confirmPayment')}
         </Button>
       </div>
     )
@@ -470,7 +469,7 @@ export function PaymentSlipUpload({
       <div className="space-y-2">
         <Label htmlFor="booking-notes" className="text-sm font-medium flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
-          {locale === 'th' ? 'คำขอพิเศษ (ถ้ามี)' : 'Special Requests (Optional)'}
+          {t('specialRequests')}
         </Label>
         <Textarea
           id="booking-notes"
@@ -480,7 +479,7 @@ export function PaymentSlipUpload({
           className="min-h-[80px] resize-none"
         />
         <p className="text-xs text-stone-500">
-          {locale === 'th' ? 'รวมถึงคำขอรับ-ส่ง, เวลาเดินทางถึง หรือความต้องการพิเศษอื่นๆ' : 'Include pickup/drop-off requests, arrival time, or other special needs.'}
+          {t('specialRequestsDesc')}
         </p>
       </div>
 
@@ -512,15 +511,15 @@ export function PaymentSlipUpload({
           
           <p className="text-base font-medium text-stone-900 mb-1">
             {isDragging 
-              ? (locale === 'th' ? 'วางสลิปที่นี่' : 'Drop your slip here') 
-              : (locale === 'th' ? 'อัปโหลดสลิปการชำระเงิน' : 'Upload payment slip')
+              ? t('dropSlipHere')
+              : t('uploadPaymentSlip')
             }
           </p>
           <p className="text-sm text-stone-500">
-            {locale === 'th' ? 'หลังจากชำระเงิน ให้ถ่ายภาพหน้าจอและอัปโหลดที่นี่' : 'After paying, take a screenshot and upload here'}
+            {t('afterPayingUpload')}
           </p>
           <p className="text-xs text-stone-400 mt-2">
-            {locale === 'th' ? 'รองรับ: JPG, PNG, WEBP (สูงสุด 10MB)' : 'Supports: JPG, PNG, WEBP (max 10MB)'}
+            {t('supportedFormatsDetail')}
           </p>
         </div>
 
@@ -539,7 +538,7 @@ export function PaymentSlipUpload({
           <div className="w-full border-t border-stone-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-stone-500">or</span>
+          <span className="bg-white px-2 text-stone-500">{t('or')}</span>
         </div>
       </div>
 
@@ -576,20 +575,20 @@ export function PaymentSlipUpload({
       {/* Tips */}
       <div className="bg-stone-50 rounded-lg p-4">
         <p className="text-sm font-medium text-stone-700 mb-2">
-          {locale === 'th' ? 'เคล็ดลับการตรวจสอบสำเร็จ:' : 'Tips for successful verification:'}
+          {t('tipsForVerification')}
         </p>
         <ul className="text-xs text-stone-500 space-y-1">
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>{locale === 'th' ? 'อัปโหลดภาพหน้าจอที่ชัดเจนของการยืนยันการชำระเงิน' : 'Upload a clear screenshot of your payment confirmation'}</span>
+            <span>{t('tip1')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>{locale === 'th' ? 'ตรวจสอบให้แน่ใจว่าจำนวนเงินและรายละเอียดผู้รับปรากฏชัดเจน' : 'Make sure the amount and recipient details are visible'}</span>
+            <span>{t('tip2')}</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>{locale === 'th' ? 'ใช้สลิปจากแอปธนาคาร ไม่ใช่รูปถ่ายหน้าจอ' : 'Use the slip from your banking app, not a photo of the screen'}</span>
+            <span>{t('tip3')}</span>
           </li>
         </ul>
       </div>
@@ -611,7 +610,7 @@ export function PaymentSlipUpload({
         disabled={!slipUrl || isUploading}
       >
         <Send className="h-5 w-5" />
-        {locale === 'th' ? 'ยืนยันการชำระเงิน' : 'Confirm Payment'}
+        {t('confirmPayment')}
       </Button>
     </div>
   )

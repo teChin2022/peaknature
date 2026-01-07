@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { Tenant, Booking, Room, Profile, TenantSettings, defaultTenantSettings } from '@/types/database'
 import { formatPrice } from '@/lib/currency'
+import { getLocaleFromCookies, getTranslations } from '@/lib/i18n-server'
 
 interface ConfirmationPageProps {
   params: Promise<{ slug: string; bookingId: string }>
@@ -68,6 +69,11 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
     notFound()
   }
 
+  // Get translations
+  const locale = await getLocaleFromCookies()
+  const messages = await getTranslations(locale)
+  const t = messages.confirmationPage
+
   const { tenant, booking } = data
   const room = booking.room
   const settings = (tenant.settings as TenantSettings) || defaultTenantSettings
@@ -78,6 +84,14 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
   const numberOfNights = differenceInDays(checkOutDate, checkInDate)
 
   const displayImage = room.images?.[0] || 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80'
+
+  // Status labels
+  const statusLabels = {
+    pending: t.pending,
+    confirmed: t.confirmedStatus,
+    cancelled: t.cancelled,
+    completed: t.completed,
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 py-12">
@@ -91,12 +105,12 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
             <CheckCircle2 className="h-10 w-10" style={{ color: tenant.primary_color }} />
           </div>
           <h1 className="text-3xl font-bold text-stone-900 mb-2">
-            Booking {booking.status === 'pending' ? 'Submitted' : 'Confirmed'}!
+            {booking.status === 'pending' ? t.submitted : t.confirmed}
           </h1>
           <p className="text-lg text-stone-600">
             {booking.status === 'pending' 
-              ? 'Your booking request has been sent. You\'ll receive a confirmation email shortly.'
-              : 'Your stay is confirmed. We look forward to hosting you!'
+              ? t.submittedDesc
+              : t.confirmedDesc
             }
           </p>
         </div>
@@ -115,7 +129,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-6 right-6">
                 <Badge className={statusColors[booking.status as keyof typeof statusColors]}>
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                  {statusLabels[booking.status as keyof typeof statusLabels]}
                 </Badge>
                 <h2 className="text-2xl font-bold text-white mt-2">{room.name}</h2>
                 <p className="text-white/80">{tenant.name}</p>
@@ -124,7 +138,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
 
             {/* Booking Reference */}
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200">
-              <div className="text-sm text-stone-500">Booking Reference</div>
+              <div className="text-sm text-stone-500">{t.bookingReference}</div>
               <div className="font-mono text-lg font-semibold text-stone-900">
                 {booking.id.slice(0, 8).toUpperCase()}
               </div>
@@ -142,7 +156,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
                     <Calendar className="h-5 w-5" style={{ color: tenant.primary_color }} />
                   </div>
                   <div>
-                    <div className="text-sm text-stone-500 mb-1">Check-in</div>
+                    <div className="text-sm text-stone-500 mb-1">{t.checkIn}</div>
                     <div className="font-semibold text-stone-900">
                       {format(checkInDate, 'EEEE, MMMM d, yyyy')}
                     </div>
@@ -162,7 +176,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
                     <Calendar className="h-5 w-5" style={{ color: tenant.primary_color }} />
                   </div>
                   <div>
-                    <div className="text-sm text-stone-500 mb-1">Check-out</div>
+                    <div className="text-sm text-stone-500 mb-1">{t.checkOut}</div>
                     <div className="font-semibold text-stone-900">
                       {format(checkOutDate, 'EEEE, MMMM d, yyyy')}
                     </div>
@@ -181,7 +195,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
                 <div className="flex items-center gap-3">
                   <Users className="h-5 w-5 text-stone-400" />
                   <span className="text-stone-700">
-                    {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {numberOfNights} night{numberOfNights > 1 ? 's' : ''}
+                    {booking.guests} {booking.guests > 1 ? t.guests : t.guest} · {numberOfNights} {numberOfNights > 1 ? t.nights : t.night}
                   </span>
                 </div>
               </div>
@@ -189,7 +203,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
               {/* Special Requests */}
               {booking.notes && (
                 <div className="p-4 bg-stone-50 rounded-lg mb-6">
-                  <div className="text-sm font-medium text-stone-700 mb-1">Special Requests & Notes</div>
+                  <div className="text-sm font-medium text-stone-700 mb-1">{t.specialRequests}</div>
                   <div className="text-stone-600 whitespace-pre-line">{booking.notes}</div>
                 </div>
               )}
@@ -199,12 +213,12 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
               {/* Price Summary */}
               <div className="space-y-3">
                 <div className="flex justify-between text-stone-600">
-                  <span>{formatPrice(room.base_price, currency)} × {numberOfNights} night{numberOfNights > 1 ? 's' : ''}</span>
+                  <span>{formatPrice(room.base_price, currency)} × {numberOfNights} {numberOfNights > 1 ? t.nights : t.night}</span>
                   <span>{formatPrice(room.base_price * numberOfNights, currency)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-semibold text-stone-900">
-                  <span>Total</span>
+                  <span>{t.total}</span>
                   <span style={{ color: tenant.primary_color }}>{formatPrice(booking.total_price, currency)}</span>
                 </div>
               </div>
@@ -215,7 +229,7 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
         {/* Contact Info */}
         <Card className="border-stone-200 mb-8">
           <CardContent className="p-6">
-            <h3 className="font-semibold text-stone-900 mb-4">Contact Information</h3>
+            <h3 className="font-semibold text-stone-900 mb-4">{t.contactInformation}</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="flex items-center gap-3 text-stone-600">
                 <MapPin className="h-5 w-5" style={{ color: tenant.primary_color }} />
@@ -240,13 +254,13 @@ export default async function BookingConfirmationPage({ params }: ConfirmationPa
               className="w-full sm:w-auto text-white"
               style={{ backgroundColor: tenant.primary_color }}
             >
-              View My Bookings
+              {t.viewMyBookings}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
           <Link href={`/${tenant.slug}`}>
             <Button variant="outline" className="w-full sm:w-auto">
-              Back to Home
+              {t.backToHome}
             </Button>
           </Link>
         </div>
