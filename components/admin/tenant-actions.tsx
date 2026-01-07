@@ -67,27 +67,33 @@ export function TenantActions({ tenant }: TenantActionsProps) {
     loadCurrency()
   }, [supabase])
 
-  // Toggle active status
+  // Toggle active status (approve/deactivate)
   const handleToggleActive = async () => {
     setIsLoading(true)
     const newStatus = !tenant.is_active
     const action = newStatus ? AuditActions.TENANT_ACTIVATE : AuditActions.TENANT_DEACTIVATE
     
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({ is_active: newStatus })
-        .eq('id', tenant.id)
-        .select()
+      // Use API route for admin operations (bypasses RLS issues)
+      const response = await fetch('/api/admin/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          updates: { is_active: newStatus }
+        })
+      })
 
-      if (error) {
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
         // Log failed action
         logAdminAction(action, 
           { type: 'tenant', id: tenant.id, name: tenant.name },
-          { success: false, errorMessage: error.message }
+          { success: false, errorMessage: result.error || 'Unknown error' }
         )
-        alert(`Error: ${error.message}`)
-        throw error
+        alert(`Error: ${result.error || 'Failed to update tenant'}`)
+        throw new Error(result.error)
       }
       
       // Log successful action
@@ -113,22 +119,29 @@ export function TenantActions({ tenant }: TenantActionsProps) {
     const oldData = { name: tenant.name, slug: tenant.slug, primary_color: tenant.primary_color, plan: tenant.plan }
     
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({
-          name: editData.name,
-          slug: editData.slug,
-          primary_color: editData.primary_color,
-          plan: editData.plan,
+      // Use API route for admin operations (bypasses RLS issues)
+      const response = await fetch('/api/admin/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          updates: {
+            name: editData.name,
+            slug: editData.slug,
+            primary_color: editData.primary_color,
+            plan: editData.plan,
+          }
         })
-        .eq('id', tenant.id)
+      })
 
-      if (error) {
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
         logAdminAction(AuditActions.TENANT_UPDATE, 
           { type: 'tenant', id: tenant.id, name: tenant.name },
-          { success: false, errorMessage: error.message }
+          { success: false, errorMessage: result.error || 'Unknown error' }
         )
-        throw error
+        throw new Error(result.error)
       }
       
       // Log successful update
@@ -162,26 +175,20 @@ export function TenantActions({ tenant }: TenantActionsProps) {
     setIsLoading(true)
     setError(null)
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .delete()
-        .eq('id', tenant.id)
+      // Use API route for admin operations (bypasses RLS issues)
+      const response = await fetch(`/api/admin/tenants?tenantId=${tenant.id}`, {
+        method: 'DELETE',
+      })
 
-      if (error) {
-        // Check if it's a foreign key constraint error
-        if (error.code === '23503') {
-          const errMsg = 'Cannot delete tenant: There are bookings or other data associated with this tenant. Please run the latest database migration to enable cascade deletion.'
-          logAdminAction(AuditActions.TENANT_DELETE, 
-            { type: 'tenant', id: tenant.id, name: tenant.name },
-            { success: false, errorMessage: errMsg }
-          )
-          throw new Error(errMsg)
-        }
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        const errMsg = result.error || 'Failed to delete tenant'
         logAdminAction(AuditActions.TENANT_DELETE, 
           { type: 'tenant', id: tenant.id, name: tenant.name },
-          { success: false, errorMessage: error.message }
+          { success: false, errorMessage: errMsg }
         )
-        throw error
+        throw new Error(errMsg)
       }
       
       // Log successful deletion

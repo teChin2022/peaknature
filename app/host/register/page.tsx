@@ -111,7 +111,6 @@ export default function HostRegisterPage() {
           p_user_id: authData.user.id,
           p_tenant_id: tenantData,
           p_full_name: data.fullName,
-          p_email: data.email,
         })
 
         if (profileError) {

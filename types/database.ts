@@ -908,6 +908,14 @@ export type Database = {
         Args: Record<string, never>
         Returns: void
       }
+      admin_update_tenant: {
+        Args: { p_tenant_id: string; p_updates: Record<string, unknown> }
+        Returns: Record<string, unknown>
+      }
+      admin_delete_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: void
+      }
     }
     Enums: {
       user_role: 'super_admin' | 'host' | 'guest'
