@@ -35,6 +35,7 @@ export function RoomFilters({
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const t = useTranslations('room')
+  const tLanding = useTranslations('landing')
   
   // Use 'any' as default to avoid hydration issues with empty string
   const [guests, setGuests] = useState(initialGuests || 'any')
@@ -123,10 +124,10 @@ export function RoomFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="any">{t('anyGuests')}</SelectItem>
-              <SelectItem value="1">{t('oneGuest')}</SelectItem>
-              <SelectItem value="2">{t('twoGuests')}</SelectItem>
-              <SelectItem value="3">{t('threeGuests')}</SelectItem>
-              <SelectItem value="4">{t('fourPlusGuests')}</SelectItem>
+              <SelectItem value="1">{tLanding('oneGuest')}</SelectItem>
+              <SelectItem value="2">{tLanding('twoGuests')}</SelectItem>
+              <SelectItem value="3">{tLanding('threeGuests')}</SelectItem>
+              <SelectItem value="4">{tLanding('fourPlusGuests')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -134,13 +135,13 @@ export function RoomFilters({
         {/* Price Range */}
         <div className="space-y-2">
           <Label className="text-sm font-medium text-stone-700">
-            {t('priceRange')}
+            {tLanding('priceRange')}
           </Label>
           <div className="flex items-center gap-3">
             <Input
               type="number"
               name="minPrice"
-              placeholder={t('min')}
+              placeholder={tLanding('min')}
               value={minPrice}
               onChange={(e) => setMinPrice(e.target.value)}
               className="flex-1"
@@ -149,7 +150,7 @@ export function RoomFilters({
             <Input
               type="number"
               name="maxPrice"
-              placeholder={t('max')}
+              placeholder={tLanding('max')}
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
               className="flex-1"
@@ -166,10 +167,10 @@ export function RoomFilters({
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t('applying')}
+              {tLanding('applying')}
             </>
           ) : (
-            t('applyFilters')
+            tLanding('applyFilters')
           )}
         </Button>
       </form>
