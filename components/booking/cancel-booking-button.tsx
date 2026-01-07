@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { X, Loader2, AlertTriangle, Smartphone, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
@@ -18,6 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { differenceInHours, parseISO } from 'date-fns'
+import { useTranslations } from 'next-intl'
 
 interface CancelBookingButtonProps {
   bookingId: string
@@ -28,6 +28,7 @@ interface CancelBookingButtonProps {
 
 export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }: CancelBookingButtonProps) {
   const router = useRouter()
+  const t = useTranslations('cancelBooking')
   const [showDialog, setShowDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,11 +50,11 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
 
   const handleCancel = async () => {
     if (!reason.trim()) {
-      setError('Please provide a reason for cancellation')
+      setError(t('pleaseProvideReason'))
       return
     }
     if (refundMethod === 'bank' && !bankAccount.trim()) {
-      setError('Please provide your bank account details')
+      setError(t('pleaseProvideBankDetails'))
       return
     }
 
@@ -83,14 +84,14 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
       // Handle rate limiting
       if (res.status === 429) {
         const retryAfter = res.headers.get('Retry-After') || '60'
-        setError(`Too many requests. Please try again in ${retryAfter} seconds.`)
+        setError(t('tooManyRequests', { seconds: retryAfter }))
         return
       }
       
       const data = await res.json()
 
       if (!data.success) {
-        setError(data.error || 'Failed to cancel')
+        setError(data.error || t('failedToCancel'))
         return
       }
 
@@ -99,7 +100,7 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
       setBankAccount('')
       router.refresh()
     } catch {
-      setError('Something went wrong. Please check your connection and try again.')
+      setError(t('somethingWrong'))
     } finally {
       setIsLoading(false)
     }
@@ -124,7 +125,7 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
         onClick={() => setShowDialog(true)}
       >
         <X className="h-4 w-4" />
-        Cancel
+        {t('cancel')}
       </Button>
 
       <AlertDialog open={showDialog} onOpenChange={handleOpenChange}>
@@ -132,10 +133,10 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
-              Cancel Booking
+              {t('cancelBooking')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide a reason and select how you&apos;d like to receive your refund.
+              {t('description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -143,11 +144,11 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
             {/* Reason */}
             <div className="space-y-2">
               <Label htmlFor="cancel-reason">
-                Reason for cancellation <span className="text-red-500">*</span>
+                {t('reasonLabel')} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="cancel-reason"
-                placeholder="Please tell us why you're cancelling..."
+                placeholder={t('reasonPlaceholder')}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="min-h-[80px]"
@@ -157,7 +158,7 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
 
             {/* Refund Method */}
             <div className="space-y-3">
-              <Label>Refund Method <span className="text-red-500">*</span></Label>
+              <Label>{t('refundMethod')} <span className="text-red-500">*</span></Label>
               <RadioGroup 
                 value={refundMethod} 
                 onValueChange={(v) => setRefundMethod(v as 'promptpay' | 'bank')}
@@ -168,10 +169,10 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
                   <div className="flex-1">
                     <Label htmlFor="promptpay" className="flex items-center gap-2 cursor-pointer">
                       <Smartphone className="h-4 w-4 text-blue-600" />
-                      PromptPay
+                      {t('promptPay')}
                     </Label>
                     <p className="text-xs text-stone-500 mt-1">
-                      Refund to: {guestPhone || 'Phone not provided'}
+                      {t('refundTo')}: {guestPhone || t('phoneNotProvided')}
                     </p>
                   </div>
                 </div>
@@ -181,10 +182,10 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
                   <div className="flex-1">
                     <Label htmlFor="bank" className="flex items-center gap-2 cursor-pointer">
                       <Building2 className="h-4 w-4 text-green-600" />
-                      Bank Transfer
+                      {t('bankTransfer')}
                     </Label>
                     <p className="text-xs text-stone-500 mt-1">
-                      Provide your bank account details below
+                      {t('bankDetailsHint')}
                     </p>
                   </div>
                 </div>
@@ -193,11 +194,11 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
               {refundMethod === 'bank' && (
                 <div className="space-y-2 pl-6">
                   <Label htmlFor="bank-account">
-                    Bank Account Details <span className="text-red-500">*</span>
+                    {t('bankAccountDetails')} <span className="text-red-500">*</span>
                   </Label>
                   <Textarea
                     id="bank-account"
-                    placeholder="Bank name: Kasikorn&#10;Account number: 123-4-56789-0&#10;Account name: John Doe"
+                    placeholder={t('bankAccountPlaceholder')}
                     value={bankAccount}
                     onChange={(e) => setBankAccount(e.target.value)}
                     className="min-h-[80px] text-sm"
@@ -215,14 +216,14 @@ export function CancelBookingButton({ bookingId, createdAt, status, guestPhone }
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>Keep Booking</AlertDialogCancel>
+            <AlertDialogCancel disabled={isLoading}>{t('keepBooking')}</AlertDialogCancel>
             <Button 
               variant="destructive" 
               onClick={handleCancel} 
               disabled={isLoading || !isValid()}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Cancel & Request Refund
+              {t('cancelAndRefund')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -26,6 +26,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Booking, Room } from '@/types/database'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslations } from 'next-intl'
 
 interface BookingWithRoom extends Booking {
   room?: Room
@@ -44,6 +45,8 @@ export default function CalendarPage() {
   const params = useParams()
   const slug = params.slug as string
   const supabase = createClient()
+  const t = useTranslations('dashboard.calendar')
+  const tCommon = useTranslations('common')
   
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'calendar' | 'agenda'>('agenda')
@@ -397,8 +400,8 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Calendar</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage bookings and availability</p>
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">{t('title')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('subtitleFull')}</p>
         </div>
         
         {/* View Toggle - Mobile */}
@@ -413,7 +416,7 @@ export default function CalendarPage() {
               }`}
             >
               <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Agenda</span>
+              <span className="hidden sm:inline">{t('agenda')}</span>
             </button>
             <button
               onClick={() => setViewMode('calendar')}
@@ -424,7 +427,7 @@ export default function CalendarPage() {
               }`}
             >
               <CalendarIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Calendar</span>
+              <span className="hidden sm:inline">{t('title')}</span>
             </button>
           </div>
         </div>
@@ -444,7 +447,7 @@ export default function CalendarPage() {
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={goToToday} className="ml-2">
-            Today
+            {t('today')}
           </Button>
         </div>
         
@@ -452,10 +455,10 @@ export default function CalendarPage() {
         <Select value={selectedRoom} onValueChange={setSelectedRoom}>
           <SelectTrigger className="w-full sm:w-[200px] bg-white">
             <BedDouble className="h-4 w-4 mr-2 text-gray-400" />
-            <SelectValue placeholder="All Rooms" />
+            <SelectValue placeholder={t('allRooms')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Rooms</SelectItem>
+            <SelectItem value="all">{t('allRooms')}</SelectItem>
             {rooms.map(room => (
               <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
             ))}
@@ -470,7 +473,7 @@ export default function CalendarPage() {
             <Card className="bg-white">
               <CardContent className="py-12 text-center">
                 <CalendarIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500">No bookings this month</p>
+                <p className="text-gray-500">{t('noBookingsThisMonth')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -493,7 +496,7 @@ export default function CalendarPage() {
                       className="text-xs"
                     >
                       <Ban className="h-3 w-3 mr-1" />
-                      Block
+                      {t('block')}
                     </Button>
                   </div>
                 </CardHeader>
@@ -517,7 +520,7 @@ export default function CalendarPage() {
                         </p>
                       </div>
                       <Badge className="bg-green-100 text-green-700 border-0 text-xs">
-                        Check-in
+                        {t('checkIn')}
                       </Badge>
                     </div>
                   ))}
@@ -538,7 +541,7 @@ export default function CalendarPage() {
                         </p>
                       </div>
                       <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">
-                        Check-out
+                        {t('checkOut')}
                       </Badge>
                     </div>
                   ))}
@@ -558,7 +561,7 @@ export default function CalendarPage() {
                         </p>
                       </div>
                       <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">
-                        Staying
+                        {t('staying')}
                       </Badge>
                     </div>
                   ))}
@@ -575,8 +578,8 @@ export default function CalendarPage() {
           <CardContent className="p-0">
             {/* Day Headers */}
             <div className="grid grid-cols-7 bg-gray-50 border-b">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="py-2 text-center text-xs font-medium text-gray-500">
+              {[t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')].map((day, index) => (
+                <div key={index} className="py-2 text-center text-xs font-medium text-gray-500">
                   <span className="hidden sm:inline">{day}</span>
                   <span className="sm:hidden">{day.charAt(0)}</span>
                 </div>
@@ -620,7 +623,7 @@ export default function CalendarPage() {
                       {status.hasBlocked && (
                         <div className="flex items-center gap-0.5">
                           <Ban className="h-3 w-3 text-red-500" />
-                          <span className="text-[10px] text-red-500 hidden sm:inline">Blocked</span>
+                          <span className="text-[10px] text-red-500 hidden sm:inline">{t('blocked')}</span>
                         </div>
                       )}
                       
@@ -645,7 +648,7 @@ export default function CalendarPage() {
                       {status.hasBookings && !status.isCheckIn && !status.isCheckOut && (
                         <div className="flex items-center gap-0.5">
                           <div className="h-2 w-2 rounded-full bg-blue-500" />
-                          <span className="text-[10px] text-blue-600 hidden sm:inline">Occupied</span>
+                          <span className="text-[10px] text-blue-600 hidden sm:inline">{t('occupied')}</span>
                         </div>
                       )}
                     </div>
@@ -661,19 +664,19 @@ export default function CalendarPage() {
       <div className="flex flex-wrap gap-4 text-xs text-gray-500">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-green-500" />
-          <span>Check-in</span>
+          <span>{t('checkIn')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-orange-500" />
-          <span>Check-out</span>
+          <span>{t('checkOut')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-blue-500" />
-          <span>Occupied</span>
+          <span>{t('occupied')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Ban className="h-3 w-3 text-red-500" />
-          <span>Blocked</span>
+          <span>{t('blocked')}</span>
         </div>
       </div>
 
@@ -681,18 +684,18 @@ export default function CalendarPage() {
       <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Block Date</DialogTitle>
+            <DialogTitle>{t('blockDate')}</DialogTitle>
             <DialogDescription>
-              Block {blockingDate ? format(blockingDate, 'MMMM d, yyyy') : ''} for a room
+              {t('blockDateFor', { date: blockingDate ? format(blockingDate, 'MMMM d, yyyy') : '' })}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Room</label>
+              <label className="text-sm font-medium">{t('selectRoom')}</label>
               <Select value={blockingRoom} onValueChange={setBlockingRoom}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a room" />
+                  <SelectValue placeholder={t('selectRoom')} />
                 </SelectTrigger>
                 <SelectContent>
                   {rooms.map(room => {
@@ -716,14 +719,14 @@ export default function CalendarPage() {
               b => b.room_id === blockingRoom && b.date === format(blockingDate, 'yyyy-MM-dd')
             ) && (
               <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                This room is already blocked on this date. Click below to unblock it.
+                {t('roomAlreadyBlocked')}
               </p>
             )}
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBlockDialog(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button 
               onClick={handleBlockDate}
@@ -741,12 +744,12 @@ export default function CalendarPage() {
               ) ? (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  Unblock
+                  {t('unblock')}
                 </>
               ) : (
                 <>
                   <Ban className="h-4 w-4 mr-2" />
-                  Block Date
+                  {t('blockDate')}
                 </>
               )}
             </Button>

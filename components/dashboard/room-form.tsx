@@ -19,21 +19,22 @@ import { Switch } from '@/components/ui/switch'
 import { createClient } from '@/lib/supabase/client'
 import { Room, Tenant } from '@/types/database'
 import { RoomImageUpload } from './room-image-upload'
+import { useTranslations } from 'next-intl'
 
-// Common amenities with icons
+// Common amenities with icons - labels will be translated
 const COMMON_AMENITIES = [
-  { id: 'wifi', label: 'WiFi', icon: Wifi },
-  { id: 'parking', label: 'Free Parking', icon: Car },
-  { id: 'breakfast', label: 'Breakfast', icon: Coffee },
-  { id: 'tv', label: 'TV', icon: Tv },
-  { id: 'ac', label: 'Air Conditioning', icon: Wind },
-  { id: 'kitchen', label: 'Kitchen', icon: Utensils },
-  { id: 'private_bathroom', label: 'Private Bathroom', icon: Bath },
-  { id: 'balcony', label: 'Balcony', icon: DoorOpen },
-  { id: 'pool', label: 'Pool Access', icon: Waves },
-  { id: 'gym', label: 'Gym Access', icon: Dumbbell },
-  { id: 'garden', label: 'Garden View', icon: Leaf },
-  { id: 'safe', label: 'Safe', icon: Shield },
+  { id: 'wifi', labelKey: 'amenityWifi', icon: Wifi },
+  { id: 'parking', labelKey: 'amenityParking', icon: Car },
+  { id: 'breakfast', labelKey: 'amenityBreakfast', icon: Coffee },
+  { id: 'tv', labelKey: 'amenityTv', icon: Tv },
+  { id: 'ac', labelKey: 'amenityAc', icon: Wind },
+  { id: 'kitchen', labelKey: 'amenityKitchen', icon: Utensils },
+  { id: 'private_bathroom', labelKey: 'amenityBathroom', icon: Bath },
+  { id: 'balcony', labelKey: 'amenityBalcony', icon: DoorOpen },
+  { id: 'pool', labelKey: 'amenityPool', icon: Waves },
+  { id: 'gym', labelKey: 'amenityGym', icon: Dumbbell },
+  { id: 'garden', labelKey: 'amenityGarden', icon: Leaf },
+  { id: 'safe', labelKey: 'amenitySafe', icon: Shield },
 ]
 
 const roomSchema = z.object({
@@ -58,6 +59,8 @@ interface RoomFormProps {
 export function RoomForm({ tenant, room, mode }: RoomFormProps) {
   const router = useRouter()
   const supabase = createClient()
+  const t = useTranslations('dashboard.roomForm')
+  const tCommon = useTranslations('common')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -141,7 +144,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       router.refresh()
     } catch (err) {
       console.error('Error saving room:', err)
-      setError('Failed to save room. Please try again.')
+      setError(t('failedToSave'))
     } finally {
       setIsLoading(false)
     }
@@ -158,18 +161,18 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       {/* Basic Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle>{t('basicInfo')}</CardTitle>
           <CardDescription>
-            Enter the basic details about this room
+            {t('basicInfoDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Room Name *</Label>
+              <Label htmlFor="name">{t('roomName')} *</Label>
               <Input
                 id="name"
-                placeholder="e.g., Deluxe Ocean View Suite"
+                placeholder={t('roomNamePlaceholder')}
                 {...register('name')}
               />
               {errors.name && (
@@ -178,7 +181,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="base_price">Price per Night ($) *</Label>
+              <Label htmlFor="base_price">{t('pricePerNight')} *</Label>
               <Input
                 id="base_price"
                 type="number"
@@ -193,10 +196,10 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('description')}</Label>
             <Textarea
               id="description"
-              placeholder="Describe the room, its features, and what makes it special..."
+              placeholder={t('descriptionPlaceholder')}
               rows={4}
               {...register('description')}
             />
@@ -204,7 +207,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="max_guests">Max Guests *</Label>
+              <Label htmlFor="max_guests">{t('maxGuests')} *</Label>
               <Input
                 id="max_guests"
                 type="number"
@@ -218,7 +221,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min_nights">Minimum Nights *</Label>
+              <Label htmlFor="min_nights">{t('minNights')} *</Label>
               <Input
                 id="min_nights"
                 type="number"
@@ -232,8 +235,8 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
 
             <div className="flex items-center justify-between p-4 bg-stone-50 rounded-lg">
               <div>
-                <Label htmlFor="is_active" className="text-base">Active</Label>
-                <p className="text-sm text-stone-500">Show on public site</p>
+                <Label htmlFor="is_active" className="text-base">{t('activeLabel')}</Label>
+                <p className="text-sm text-stone-500">{t('showOnPublicSite')}</p>
               </div>
               <Controller
                 name="is_active"
@@ -254,15 +257,15 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       {/* Check-in/Check-out Times */}
       <Card>
         <CardHeader>
-          <CardTitle>Check-in & Check-out</CardTitle>
+          <CardTitle>{t('checkInCheckOut')}</CardTitle>
           <CardDescription>
-            Set the times for guest check-in and check-out
+            {t('checkInCheckOutDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="check_in_time">Check-in Time</Label>
+              <Label htmlFor="check_in_time">{t('checkInTime')}</Label>
               <Input
                 id="check_in_time"
                 type="time"
@@ -270,7 +273,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="check_out_time">Check-out Time</Label>
+              <Label htmlFor="check_out_time">{t('checkOutTime')}</Label>
               <Input
                 id="check_out_time"
                 type="time"
@@ -284,9 +287,9 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       {/* Images */}
       <Card>
         <CardHeader>
-          <CardTitle>Images</CardTitle>
+          <CardTitle>{t('images')}</CardTitle>
           <CardDescription>
-            Upload photos of the room (first image will be the cover)
+            {t('imagesDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -303,9 +306,9 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       {/* Amenities */}
       <Card>
         <CardHeader>
-          <CardTitle>Amenities</CardTitle>
+          <CardTitle>{t('amenities')}</CardTitle>
           <CardDescription>
-            Select the amenities available in this room
+            {t('amenitiesDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -325,7 +328,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
                   }`}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="text-sm">{amenity.label}</span>
+                  <span className="text-sm">{t(amenity.labelKey as keyof typeof t)}</span>
                 </button>
               )
             })}
@@ -336,9 +339,9 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
       {/* House Rules */}
       <Card>
         <CardHeader>
-          <CardTitle>House Rules</CardTitle>
+          <CardTitle>{t('houseRules')}</CardTitle>
           <CardDescription>
-            Add any rules or guidelines for guests
+            {t('houseRulesDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -366,14 +369,14 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
           {/* Add Rule */}
           <div className="flex gap-2">
             <Input
-              placeholder="e.g., No smoking, Quiet hours after 10 PM..."
+              placeholder={t('rulePlaceholder')}
               value={newRule}
               onChange={(e) => setNewRule(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addRule())}
             />
             <Button type="button" variant="outline" onClick={addRule}>
               <Plus className="h-4 w-4 mr-2" />
-              Add
+              {t('add')}
             </Button>
           </div>
         </CardContent>
@@ -387,7 +390,7 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
           onClick={() => router.back()}
           disabled={isLoading}
         >
-          Cancel
+          {tCommon('cancel')}
         </Button>
         <Button
           type="submit"
@@ -398,12 +401,12 @@ export function RoomForm({ tenant, room, mode }: RoomFormProps) {
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {t('saving')}
             </>
           ) : mode === 'create' ? (
-            'Create Room'
+            t('createRoom')
           ) : (
-            'Save Changes'
+            t('saveChanges')
           )}
         </Button>
       </div>

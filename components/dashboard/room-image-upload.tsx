@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Upload, X, Loader2, ImageIcon, GripVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 interface RoomImageUploadProps {
   tenantId: string
@@ -21,6 +22,7 @@ export function RoomImageUpload({
   onImagesChange,
   primaryColor 
 }: RoomImageUploadProps) {
+  const t = useTranslations('dashboard.roomImageUpload')
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{
     current: number
@@ -46,13 +48,13 @@ export function RoomImageUpload({
         // Validate file type
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
         if (!validTypes.includes(file.type)) {
-          setError(`${file.name}: Invalid file type. Supported: JPG, PNG, WebP, GIF, AVIF`)
+          setError(`${file.name}: ${t('invalidFileType')}`)
           continue
         }
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-          setError(`${file.name}: File too large. Maximum size is 10MB`)
+          setError(`${file.name}: ${t('fileTooLarge')}`)
           continue
         }
 
@@ -93,7 +95,7 @@ export function RoomImageUpload({
       }
     } catch (err) {
       console.error('Upload error:', err)
-      setError('Failed to upload images. Please try again.')
+      setError(t('uploadFailed'))
     } finally {
       setIsUploading(false)
       setUploadProgress(null)
@@ -151,7 +153,7 @@ export function RoomImageUpload({
               {/* Cover badge */}
               {index === 0 && (
                 <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 text-white text-xs rounded z-10">
-                  Cover
+                  {t('cover')}
                 </div>
               )}
               
@@ -163,7 +165,7 @@ export function RoomImageUpload({
                     type="button"
                     onClick={() => moveImage(index, index - 1)}
                     className="p-2 bg-white/90 text-stone-700 rounded-full hover:bg-white transition-colors"
-                    title="Move left"
+                    title={t('moveLeft')}
                   >
                     <GripVertical className="h-4 w-4 rotate-90" />
                   </button>
@@ -174,7 +176,7 @@ export function RoomImageUpload({
                   type="button"
                   onClick={() => removeImage(url)}
                   className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  title="Remove image"
+                  title={t('removeImage')}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -185,7 +187,7 @@ export function RoomImageUpload({
                     type="button"
                     onClick={() => moveImage(index, index + 1)}
                     className="p-2 bg-white/90 text-stone-700 rounded-full hover:bg-white transition-colors"
-                    title="Move right"
+                    title={t('moveRight')}
                   >
                     <GripVertical className="h-4 w-4 -rotate-90" />
                   </button>
@@ -217,7 +219,7 @@ export function RoomImageUpload({
               <Loader2 className="h-10 w-10 mx-auto animate-spin" style={{ color: primaryColor }} />
               <div>
                 <p className="font-medium text-stone-900">
-                  Uploading {uploadProgress?.current} of {uploadProgress?.total}...
+                  {t('uploadingProgress', { current: uploadProgress?.current || 0, total: uploadProgress?.total || 0 })}
                 </p>
                 <p className="text-sm text-stone-500 truncate max-w-xs mx-auto">
                   {uploadProgress?.fileName}
@@ -243,13 +245,13 @@ export function RoomImageUpload({
                 <Upload className="h-6 w-6" style={{ color: primaryColor }} />
               </div>
               <p className="text-stone-900 font-medium">
-                Click to upload images
+                {t('clickToUpload')}
               </p>
               <p className="text-sm text-stone-500 mt-1">
-                or drag and drop
+                {t('orDragDrop')}
               </p>
               <p className="text-xs text-stone-400 mt-2">
-                JPG, PNG, WebP, GIF, AVIF • Max 10MB each
+                {t('supportedFormats')}
               </p>
             </>
           )}
@@ -266,7 +268,7 @@ export function RoomImageUpload({
       {/* Help text */}
       <p className="text-xs text-stone-500 flex items-center gap-1">
         <ImageIcon className="h-3 w-3" />
-        The first image will be used as the cover photo. Drag to reorder.
+        {t('coverPhotoHint')}
       </p>
     </div>
   )

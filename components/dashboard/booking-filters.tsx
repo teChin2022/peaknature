@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useTranslations } from 'next-intl'
 
 interface BookingFiltersProps {
   tenantSlug: string
@@ -21,6 +22,8 @@ export function BookingFilters({ tenantSlug }: BookingFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const t = useTranslations('dashboard.bookings')
+  const tStatus = useTranslations('dashboard.status')
   
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [status, setStatus] = useState(searchParams.get('status') || 'all')
@@ -43,7 +46,7 @@ export function BookingFilters({ tenantSlug }: BookingFiltersProps) {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by guest, room, or booking ID..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -51,14 +54,14 @@ export function BookingFilters({ tenantSlug }: BookingFiltersProps) {
           </div>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="all">{t('allStatuses')}</SelectItem>
+              <SelectItem value="pending">{tStatus('pending')}</SelectItem>
+              <SelectItem value="confirmed">{tStatus('confirmed')}</SelectItem>
+              <SelectItem value="cancelled">{tStatus('cancelled')}</SelectItem>
+              <SelectItem value="completed">{tStatus('completed')}</SelectItem>
             </SelectContent>
           </Select>
           <Button type="submit" variant="outline" className="gap-2" disabled={isPending}>
@@ -67,7 +70,7 @@ export function BookingFilters({ tenantSlug }: BookingFiltersProps) {
             ) : (
               <Filter className="h-4 w-4" />
             )}
-            Apply
+            {t('apply')}
           </Button>
         </form>
     </div>

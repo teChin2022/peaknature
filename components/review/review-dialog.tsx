@@ -14,6 +14,7 @@ import {
 import { ReviewForm } from './review-form'
 import { StarRating } from './star-rating'
 import { format } from 'date-fns'
+import { useTranslations } from 'next-intl'
 
 export interface ExistingReview {
   id: string
@@ -40,6 +41,8 @@ export function ReviewDialog({
   existingReview = null,
 }: ReviewDialogProps) {
   const router = useRouter()
+  const t = useTranslations('review')
+  const tCommon = useTranslations('common')
   const [isOpen, setIsOpen] = useState(false)
   const [currentReview, setCurrentReview] = useState<ExistingReview | null>(existingReview)
   const [hasSubmitted, setHasSubmitted] = useState(false)
@@ -56,7 +59,7 @@ export function ReviewDialog({
     return (
       <span className="text-sm text-green-600 flex items-center gap-1">
         <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-        Review Submitted!
+        {t('reviewSubmitted')}
       </span>
     )
   }
@@ -66,13 +69,21 @@ export function ReviewDialog({
     return (
       <span className="text-sm text-stone-500 flex items-center gap-1">
         <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-        Reviewed
+        {t('reviewed')}
       </span>
     )
   }
 
   // If we have review data, show view-only dialog
   if (currentReview) {
+    const ratingLabels: Record<number, string> = {
+      1: t('ratingPoor'),
+      2: t('ratingFair'),
+      3: t('ratingGood'),
+      4: t('ratingVeryGood'),
+      5: t('ratingExcellent'),
+    }
+
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
@@ -82,18 +93,18 @@ export function ReviewDialog({
             className="gap-1.5"
           >
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            View Review
+            {t('viewReview')}
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="sr-only">Your Review</DialogTitle>
+            <DialogTitle className="sr-only">{t('yourReview')}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6">
             <div className="text-center pb-4 border-b border-stone-200">
               <h3 className="font-semibold text-stone-900 text-lg">
-                Your Review
+                {t('yourReview')}
               </h3>
               <p className="text-sm text-stone-600 mt-1">
                 {roomName}
@@ -108,11 +119,7 @@ export function ReviewDialog({
                 primaryColor={primaryColor}
               />
               <p className="text-sm text-stone-600">
-                {currentReview.rating === 1 && 'Poor'}
-                {currentReview.rating === 2 && 'Fair'}
-                {currentReview.rating === 3 && 'Good'}
-                {currentReview.rating === 4 && 'Very Good'}
-                {currentReview.rating === 5 && 'Excellent'}
+                {ratingLabels[currentReview.rating]}
               </p>
             </div>
 
@@ -127,7 +134,7 @@ export function ReviewDialog({
 
             {/* Date */}
             <p className="text-center text-xs text-stone-500">
-              Reviewed on {format(new Date(currentReview.created_at), 'MMMM d, yyyy')}
+              {t('reviewedOn')} {format(new Date(currentReview.created_at), 'MMMM d, yyyy')}
             </p>
 
             {/* Close Button */}
@@ -136,7 +143,7 @@ export function ReviewDialog({
               className="w-full"
               onClick={() => setIsOpen(false)}
             >
-              Close
+              {tCommon('close')}
             </Button>
           </div>
         </DialogContent>
@@ -154,12 +161,12 @@ export function ReviewDialog({
           className="gap-1.5"
         >
           <MessageSquarePlus className="h-4 w-4" />
-          Write Review
+          {t('writeReview')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="sr-only">Write a Review</DialogTitle>
+          <DialogTitle className="sr-only">{t('writeReview')}</DialogTitle>
         </DialogHeader>
         <ReviewForm
           bookingId={bookingId}
