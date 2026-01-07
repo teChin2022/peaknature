@@ -193,7 +193,15 @@ export default function HostLoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-stone-700">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-stone-700">Password</Label>
+                <Link 
+                  href="/host/forgot-password" 
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
                 <Input
