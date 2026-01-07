@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifySlip } from '@/lib/easyslip'
 import { sendLineMessage, sendEmail, generateBookingNotification, generateGuestConfirmationEmail } from '@/lib/notifications'
@@ -439,14 +440,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fire and forget - don't await
-    sendNotificationsAsync()
+    // Use Next.js after() to run notifications after response is sent
+    // This ensures the function stays alive until notifications complete
+    after(async () => {
+      console.log('[verify-slip] 📧 Running notifications in after()...')
+      await sendNotificationsAsync()
+      console.log('[verify-slip] 📧 Notifications completed')
+    })
 
     // STEP 2: Background EasySlip verification (runs AFTER response sent)
     if (shouldVerifyWithEasySlip) {
+      console.log('[verify-slip] 🚀 Starting background EasySlip verification...', { 
+        bookingId, 
+        slipUrl: slipUrl.substring(0, 50) + '...',
+        expectedAmount 
+      })
+      
       // This runs in background - user doesn't wait!
       const runBackgroundVerification = async () => {
         try {
+          console.log('[verify-slip] 📡 Calling EasySlip API...', { bookingId })
           logger.info('Starting background EasySlip verification', { bookingId })
           
           const verificationResult = await verifySlip({
@@ -454,6 +467,14 @@ export async function POST(request: NextRequest) {
             apiKey: easySlipApiKey!,
             expectedAmount: expectedAmount,
             amountTolerance: 1
+          })
+          
+          console.log('[verify-slip] 📡 EasySlip API response:', { 
+            bookingId, 
+            success: verificationResult.success,
+            verified: verificationResult.verified,
+            error: verificationResult.error,
+            hasData: !!verificationResult.data
           })
 
           logger.info('EasySlip verification complete', { 
@@ -499,12 +520,20 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (err) {
+          console.error('[verify-slip] ❌ Background verification error:', err)
           logger.error('Background verification error', err)
         }
       }
       
-      // Fire and forget
-      runBackgroundVerification()
+      // Use Next.js after() to ensure EasySlip verification completes
+      // This keeps the serverless function alive until verification is done
+      after(async () => {
+        console.log('[verify-slip] 🔥 Running EasySlip verification in after()...')
+        await runBackgroundVerification()
+        console.log('[verify-slip] ✅ EasySlip verification completed in after()')
+      })
+    } else {
+      console.log('[verify-slip] ⏭️ Skipping EasySlip verification (not enabled or no API key)')
     }
 
     // Return success immediately - user doesn't wait for EasySlip!
