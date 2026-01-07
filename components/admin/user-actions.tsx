@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   MoreVertical, User, Ban, CheckCircle, Loader2, 
-  Mail, Phone, Calendar, Building2, Shield, Edit2 
+  Mail, Phone, Calendar, Building2, Shield, Trash2, AlertTriangle 
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -24,13 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/types/database'
@@ -58,8 +51,7 @@ export function UserActions({ user }: UserActionsProps) {
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
   const [profileDialog, setProfileDialog] = useState(false)
-  const [editRoleDialog, setEditRoleDialog] = useState(false)
-  const [selectedRole, setSelectedRole] = useState(user.role)
+  const [deleteDialog, setDeleteDialog] = useState(false)
 
   // Toggle block status
   const handleToggleBlock = async () => {
@@ -101,39 +93,42 @@ export function UserActions({ user }: UserActionsProps) {
     }
   }
 
-  // Update user role
-  const handleUpdateRole = async () => {
+  // Delete user
+  const handleDeleteUser = async () => {
     setIsLoading(true)
-    const oldRole = user.role
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: selectedRole })
-        .eq('id', user.id)
+      const response = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
 
-      if (error) {
-        logAdminAction(AuditActions.USER_ROLE_CHANGE,
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        logAdminAction(AuditActions.USER_DELETE,
           { type: 'user', id: user.id, name: user.full_name || user.email },
-          { success: false, errorMessage: error.message }
+          { success: false, errorMessage: result.error }
         )
-        throw error
+        alert(`Error: ${result.error || 'Failed to delete user'}`)
+        return
       }
       
-      // Log successful role change
-      logAdminAction(AuditActions.USER_ROLE_CHANGE,
+      // Log successful deletion
+      logAdminAction(AuditActions.USER_DELETE,
         { type: 'user', id: user.id, name: user.full_name || user.email },
         { 
           tenantId: user.tenant_id || undefined,
-          oldValue: { role: oldRole },
-          newValue: { role: selectedRole }
+          details: { email: user.email, role: user.role }
         }
       )
       
-      setEditRoleDialog(false)
+      setDeleteDialog(false)
       router.refresh()
     } catch (error) {
-      console.error('Error updating user role:', error)
+      console.error('Error deleting user:', error)
+      alert('An error occurred while deleting the user')
     } finally {
       setIsLoading(false)
     }
@@ -157,13 +152,6 @@ export function UserActions({ user }: UserActionsProps) {
             <User className="h-4 w-4 mr-2" />
             View Profile
           </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={() => setEditRoleDialog(true)}
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer"
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            Change Role
-          </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-gray-100" />
           <DropdownMenuItem 
             onClick={handleToggleBlock}
@@ -181,6 +169,13 @@ export function UserActions({ user }: UserActionsProps) {
                 Block User
               </>
             )}
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setDeleteDialog(true)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete User
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -305,78 +300,72 @@ export function UserActions({ user }: UserActionsProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Role Dialog */}
-      <Dialog open={editRoleDialog} onOpenChange={setEditRoleDialog}>
-        <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[400px]">
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Delete User
+            </DialogTitle>
             <DialogDescription className="text-gray-500">
-              Update the role for {user.full_name || user.email}
+              This action cannot be undone. This will permanently delete the user account and all associated data.
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-4 space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium">
+            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-lg">
                 {(user.full_name || user.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="font-medium text-gray-900">{user.full_name || 'No name'}</div>
                 <div className="text-sm text-gray-500">{user.email}</div>
+                <div className="mt-1">
+                  <Badge className={`${roleColors[user.role as keyof typeof roleColors]} text-white text-xs`}>
+                    {user.role.replace('_', ' ')}
+                  </Badge>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-700">Role</Label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-200">
-                  <SelectItem value="guest">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Guest
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="host">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Host
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="super_admin">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Super Admin
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>Warning:</strong> Deleting this user will also remove:
+              </p>
+              <ul className="mt-2 text-sm text-amber-700 list-disc list-inside space-y-1">
+                <li>All bookings made by this user</li>
+                <li>All reviews written by this user</li>
+                <li>Any pending reservations</li>
+              </ul>
             </div>
           </div>
 
           <DialogFooter className="mt-6">
             <Button
               variant="outline"
-              onClick={() => setEditRoleDialog(false)}
+              onClick={() => setDeleteDialog(false)}
+              disabled={isLoading}
               className="border-gray-200 text-gray-600 hover:bg-gray-100"
             >
               Cancel
             </Button>
             <Button
               type="button"
-              onClick={handleUpdateRole}
-              disabled={isLoading || selectedRole === user.role}
-              className="bg-gray-900 hover:bg-gray-800 text-white"
+              onClick={handleDeleteUser}
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Deleting...
                 </>
               ) : (
-                'Save Changes'
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete User
+                </>
               )}
             </Button>
           </DialogFooter>
