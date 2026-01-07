@@ -127,6 +127,7 @@ export function PaymentSectionWrapper({
           <PromptPayQRCode
             qrCodeUrl={settings.payment.promptpay_qr_url}
             promptpayName={settings.payment.promptpay_name}
+            promptpayId={settings.payment.promptpay_id}
             amount={grandTotal}
             currency={settings.currency}
             primaryColor={tenant.primary_color}

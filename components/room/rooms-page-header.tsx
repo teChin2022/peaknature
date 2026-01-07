@@ -1,7 +1,6 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useLanguage } from '@/components/providers/language-provider'
 
 interface RoomsPageHeaderProps {
   roomCount: number
@@ -9,7 +8,6 @@ interface RoomsPageHeaderProps {
 
 export function RoomsPageHeader({ roomCount }: RoomsPageHeaderProps) {
   const t = useTranslations('room')
-  const { locale } = useLanguage()
 
   return (
     <div className="bg-white border-b border-stone-200">
@@ -18,9 +16,9 @@ export function RoomsPageHeader({ roomCount }: RoomsPageHeaderProps) {
           {t('ourRooms')}
         </h1>
         <p className="text-lg text-stone-600">
-          {locale === 'th' 
-            ? `พบห้องพักที่เหมาะกับคุณจากห้องพักที่ว่าง ${roomCount} ห้อง`
-            : `Find your perfect space from our ${roomCount} available room${roomCount !== 1 ? 's' : ''}`
+          {roomCount === 1 
+            ? t('findYourPerfectSpaceSingular', { count: roomCount })
+            : t('findYourPerfectSpace', { count: roomCount })
           }
         </p>
       </div>

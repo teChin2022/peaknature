@@ -532,30 +532,33 @@ export function PaymentSlipUpload({
         />
       </div>
 
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-stone-200" />
+      {/* Upload from Phone Button - Hidden on mobile since users are already on phone */}
+      <div className="hidden md:block">
+        {/* Divider */}
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-stone-200" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-stone-500">{t('or')}</span>
+          </div>
         </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-stone-500">{t('or')}</span>
-        </div>
+
+        {/* Upload from Phone Button */}
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-12 gap-2"
+          onClick={() => setShowQRModal(true)}
+        >
+          <Smartphone className="h-5 w-5" />
+          {t('uploadFromPhone')}
+        </Button>
+
+        <p className="text-xs text-stone-500 text-center mt-4">
+          {t('scanQRToUpload')}
+        </p>
       </div>
-
-      {/* Upload from Phone Button */}
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 gap-2"
-        onClick={() => setShowQRModal(true)}
-      >
-        <Smartphone className="h-5 w-5" />
-        {t('uploadFromPhone')}
-      </Button>
-
-      <p className="text-xs text-stone-500 text-center">
-        {t('scanQRToUpload')}
-      </p>
 
       {/* QR Upload Modal */}
       <QRUploadModal

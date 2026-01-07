@@ -1057,6 +1057,32 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                     {t('accountNameHint')}
                   </p>
                 </div>
+
+                {/* PromptPay Number */}
+                <div className="space-y-2 pt-4 border-t">
+                  <Label htmlFor="promptpay_id">{t('promptPayNumber')}</Label>
+                  <Input
+                    id="promptpay_id"
+                    value={settings.payment?.promptpay_id || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      payment: { 
+                        ...settings.payment,
+                        promptpay_id: e.target.value,
+                        promptpay_name: settings.payment?.promptpay_name || '',
+                        promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
+                        easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
+                        line_channel_access_token: settings.payment?.line_channel_access_token || '',
+                        line_user_id: settings.payment?.line_user_id || ''
+                      }
+                    })}
+                    placeholder={t('promptPayNumberPlaceholder')}
+                  />
+                  <p className="text-xs text-gray-500">
+                    {t('promptPayNumberHint')}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
