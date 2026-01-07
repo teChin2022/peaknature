@@ -17,8 +17,10 @@ function generateSlipHash(slipUrl: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  let debugStep = 'init'
   try {
     // Rate limiting - 10 requests per minute per IP
+    debugStep = 'rate-limit'
     const clientIP = getClientIP(request.headers)
     const { success: rateLimitOk, reset } = await apiLimiter.check(10, `verify-slip:${clientIP}`)
     if (!rateLimitOk) {
@@ -26,8 +28,10 @@ export async function POST(request: NextRequest) {
       return rateLimitResponse(reset)
     }
 
+    debugStep = 'parse-body'
     const body = await request.json()
     const { bookingId, slipUrl, expectedAmount, tenantId } = body
+    console.log('[verify-slip] Request:', { bookingId, tenantId, hasSlipUrl: !!slipUrl, expectedAmount })
 
     if (!bookingId || !slipUrl) {
       return NextResponse.json(
@@ -36,9 +40,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    debugStep = 'create-supabase'
     const supabase = await createClient()
+    console.log('[verify-slip] Supabase client created')
+
+    debugStep = 'create-admin-client'
+    const adminClient = createAdminClient()
+    console.log('[verify-slip] Admin client created')
 
     // Run auth check, booking fetch, and tenant fetch in parallel for speed
+    debugStep = 'fetch-data'
     const [authResult, bookingResult, tenantResult] = await Promise.all([
       supabase.auth.getUser(),
       supabase
@@ -52,6 +63,7 @@ export async function POST(request: NextRequest) {
         .eq('id', tenantId)
         .single()
     ])
+    console.log('[verify-slip] Data fetched', { hasUser: !!authResult.data?.user, hasBooking: !!bookingResult.data, hasTenant: !!tenantResult.data })
 
     const user = authResult.data?.user
     const booking = bookingResult.data
@@ -135,15 +147,14 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 1: Confirm booking IMMEDIATELY (no waiting for EasySlip!)
+    debugStep = 'update-booking'
     const updateData: Record<string, unknown> = {
       status: 'confirmed',
       payment_slip_url: slipUrl
     }
 
-    const adminClient = createAdminClient()
-
     // Execute DB operations in parallel
-    const [updateResult] = await Promise.all([
+    const [updateResult, slipResult, auditResult] = await Promise.all([
       supabase.from('bookings').update(updateData).eq('id', bookingId),
       // Use adminClient to bypass RLS for verified_slips insert
       adminClient.from('verified_slips').insert({
@@ -154,7 +165,7 @@ export async function POST(request: NextRequest) {
         amount: expectedAmount,
         slip_url: slipUrl,
         easyslip_data: null
-      }).catch(err => logger.error('Failed to store verified slip', err)),
+      }),
       adminClient.from('audit_logs').insert({
         action: 'payment.verify',
         category: 'user',
@@ -169,8 +180,12 @@ export async function POST(request: NextRequest) {
         tenant_id: tenantId,
         details: { amount: expectedAmount, checkIn: booking.check_in, checkOut: booking.check_out },
         success: true
-      }).catch(err => logger.error('Failed to log payment verification', err))
+      })
     ])
+    
+    // Log non-critical errors (don't block the response)
+    if (slipResult.error) logger.error('Failed to store verified slip', slipResult.error)
+    if (auditResult.error) logger.error('Failed to log payment verification', auditResult.error)
 
     // Only check the booking update result (critical operation)
     if (updateResult.error) {
@@ -394,17 +409,17 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Payment verification error:', error)
+    console.error('[verify-slip] ERROR at step:', debugStep, error)
     
     // Report critical error to admin via LINE
     await reportCriticalErrorServer(
       'Payment Verification Failed',
-      String(error),
+      `Step: ${debugStep}, Error: ${String(error)}`,
       `BookingId: ${request.url}`
-    )
+    ).catch(() => {}) // Don't let error reporting cause another error
     
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: `Internal server error at ${debugStep}` },
       { status: 500 }
     )
   }
