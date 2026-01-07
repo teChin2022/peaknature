@@ -472,12 +472,26 @@ export default function PaymentPage() {
                   </div>
 
                   {/* Account Info */}
-                  {settings.payment?.promptpay_name && (
-                    <div className="bg-stone-50 rounded-lg p-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-stone-500">{t('payTo')}</span>
-                        <span className="font-medium text-stone-900">{settings.payment.promptpay_name}</span>
-                      </div>
+                  {(settings.payment?.promptpay_name || settings.payment?.bank_name || settings.payment?.bank_account_number) && (
+                    <div className="bg-stone-50 rounded-lg p-4 space-y-2">
+                      {settings.payment?.promptpay_name && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-stone-500">{t('payTo')}</span>
+                          <span className="font-medium text-stone-900">{settings.payment.promptpay_name}</span>
+                        </div>
+                      )}
+                      {settings.payment?.bank_name && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-stone-500">{t('bankName')}</span>
+                          <span className="font-medium text-stone-900">{settings.payment.bank_name}</span>
+                        </div>
+                      )}
+                      {settings.payment?.bank_account_number && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-stone-500">{t('accountNumber')}</span>
+                          <span className="font-mono font-medium text-stone-900">{settings.payment.bank_account_number}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

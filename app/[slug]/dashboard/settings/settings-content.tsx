@@ -939,6 +939,8 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                                     promptpay_qr_url: publicUrl,
                                     promptpay_id: settings.payment?.promptpay_id || '',
                                     promptpay_name: settings.payment?.promptpay_name || '',
+                                    bank_name: settings.payment?.bank_name || '',
+                                    bank_account_number: settings.payment?.bank_account_number || '',
                                     payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                                     easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                                     line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -991,6 +993,8 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                                 promptpay_qr_url: publicUrl,
                                 promptpay_id: settings.payment?.promptpay_id || '',
                                 promptpay_name: settings.payment?.promptpay_name || '',
+                                bank_name: settings.payment?.bank_name || '',
+                                bank_account_number: settings.payment?.bank_account_number || '',
                                 payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                                 easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                                 line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -1045,6 +1049,8 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         promptpay_id: settings.payment?.promptpay_id || '',
                         promptpay_name: e.target.value,
                         promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                         easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                         line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -1056,6 +1062,69 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                   <p className="text-xs text-gray-500">
                     {t('accountNameHint')}
                   </p>
+                </div>
+
+                {/* Bank Details Section */}
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="h-4 w-4 text-gray-500" />
+                    <Label className="text-sm font-medium">{t('bankDetails')}</Label>
+                  </div>
+                  <p className="text-xs text-gray-500 -mt-2">
+                    {t('bankDetailsHint')}
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Bank Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_name">{t('bankName')}</Label>
+                      <Input
+                        id="bank_name"
+                        value={settings.payment?.bank_name || ''}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          payment: { 
+                            ...settings.payment,
+                            promptpay_id: settings.payment?.promptpay_id || '',
+                            promptpay_name: settings.payment?.promptpay_name || '',
+                            promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                            bank_name: e.target.value,
+                            bank_account_number: settings.payment?.bank_account_number || '',
+                            payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
+                            easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
+                            line_channel_access_token: settings.payment?.line_channel_access_token || '',
+                            line_user_id: settings.payment?.line_user_id || ''
+                          }
+                        })}
+                        placeholder={t('bankNamePlaceholder')}
+                      />
+                    </div>
+
+                    {/* Bank Account Number */}
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_account_number">{t('bankAccountNumber')}</Label>
+                      <Input
+                        id="bank_account_number"
+                        value={settings.payment?.bank_account_number || ''}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          payment: { 
+                            ...settings.payment,
+                            promptpay_id: settings.payment?.promptpay_id || '',
+                            promptpay_name: settings.payment?.promptpay_name || '',
+                            promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                            bank_name: settings.payment?.bank_name || '',
+                            bank_account_number: e.target.value,
+                            payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
+                            easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
+                            line_channel_access_token: settings.payment?.line_channel_access_token || '',
+                            line_user_id: settings.payment?.line_user_id || ''
+                          }
+                        })}
+                        placeholder={t('bankAccountNumberPlaceholder')}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* PromptPay Number */}
@@ -1071,6 +1140,8 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         promptpay_id: e.target.value,
                         promptpay_name: settings.payment?.promptpay_name || '',
                         promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                         easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                         line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -1108,6 +1179,9 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         ...settings.payment,
                         promptpay_id: settings.payment?.promptpay_id || '',
                         promptpay_name: settings.payment?.promptpay_name || '',
+                        promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: parseInt(value),
                         easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                         line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -1175,6 +1249,9 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         ...settings.payment,
                         promptpay_id: settings.payment?.promptpay_id || '',
                         promptpay_name: settings.payment?.promptpay_name || '',
+                        promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                         easyslip_enabled: checked,
                         line_channel_access_token: settings.payment?.line_channel_access_token || '',
@@ -1222,6 +1299,9 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         ...settings.payment,
                         promptpay_id: settings.payment?.promptpay_id || '',
                         promptpay_name: settings.payment?.promptpay_name || '',
+                        promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                         easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                         line_channel_access_token: e.target.value,
@@ -1246,6 +1326,9 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                         ...settings.payment,
                         promptpay_id: settings.payment?.promptpay_id || '',
                         promptpay_name: settings.payment?.promptpay_name || '',
+                        promptpay_qr_url: settings.payment?.promptpay_qr_url || '',
+                        bank_name: settings.payment?.bank_name || '',
+                        bank_account_number: settings.payment?.bank_account_number || '',
                         payment_timeout_minutes: settings.payment?.payment_timeout_minutes || 15,
                         easyslip_enabled: settings.payment?.easyslip_enabled ?? true,
                         line_channel_access_token: settings.payment?.line_channel_access_token || '',

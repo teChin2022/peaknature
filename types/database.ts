@@ -74,6 +74,8 @@ export interface TenantSettings {
     promptpay_id: string              // Phone number or National ID (13 digits)
     promptpay_name: string            // Display name for the account
     promptpay_qr_url: string          // Uploaded QR code image URL from bank
+    bank_name: string                 // Bank name (e.g., "Kasikorn Bank", "SCB")
+    bank_account_number: string       // Bank account number for reference
     payment_timeout_minutes: number   // How long guest has to complete payment
     easyslip_enabled: boolean         // Whether to use EasySlip verification
     line_channel_access_token: string // LINE Messaging API channel access token
@@ -145,6 +147,8 @@ export const defaultTenantSettings: TenantSettings = {
     promptpay_id: '',
     promptpay_name: '',
     promptpay_qr_url: '',
+    bank_name: '',
+    bank_account_number: '',
     payment_timeout_minutes: 15,
     easyslip_enabled: false, // Default to false for instant confirmation
     line_channel_access_token: '',
