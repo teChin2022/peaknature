@@ -608,7 +608,7 @@ export async function POST(request: NextRequest) {
               // Use translated error message if available
               const translatedError = t?.slipVerification?.easyslipErrors?.[errorCode as keyof (typeof t.slipVerification)['easyslipErrors']] || errorMessage
               fraudReasons.push(t?.slipVerification?.fraudReasons?.invalidSlip?.replace('{message}', translatedError) || `Invalid slip: ${errorMessage}`)
-            } else {
+            } else if (isSystemError) {
               // For system errors, notify admin but DON'T cancel booking (manual review needed)
               console.log('[verify-slip] ⚠️ EasySlip system error - manual review needed', { errorCode, errorMessage })
               
@@ -678,8 +678,8 @@ export async function POST(request: NextRequest) {
                 console.error('[verify-slip] ❌ LINE system error to admin failed:', adminLineErr)
               }
             } else {
-              // Unknown error type - treat as system error (still notify)
-              console.log('[verify-slip] ⚠️ Unknown error type, treating as system error')
+              // Unknown error type (not in fraud or system error lists) - still notify admin
+              console.log('[verify-slip] ⚠️ Unknown error type, notifying admin')
               
               const guestName = booking.user?.full_name || booking.user?.email || 'Unknown'
               const roomName = booking.room?.name || 'Unknown Room'
