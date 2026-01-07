@@ -1,17 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, Mail, Lock, Eye, EyeOff, Building2 } from 'lucide-react'
+import { Loader2, Mail, Lock, Eye, EyeOff, Building2, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { logSecurityEvent, AuditActions } from '@/lib/audit'
+import { getAppBaseUrl } from '@/lib/utils'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -22,10 +23,68 @@ type LoginFormData = z.infer<typeof loginSchema>
 
 export default function HostLoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showResendForm, setShowResendForm] = useState(false)
+  const [resendEmail, setResendEmail] = useState('')
+  const [isResending, setIsResending] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
+
+  // Handle URL parameters (error/message from callbacks)
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    const messageParam = searchParams.get('message')
+    const showResend = searchParams.get('showResend')
+    
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+    }
+    if (messageParam) {
+      setSuccessMessage(decodeURIComponent(messageParam))
+    }
+    if (showResend === 'true') {
+      setShowResendForm(true)
+    }
+  }, [searchParams])
+
+  // Resend verification email
+  const handleResendVerification = async () => {
+    if (!resendEmail) {
+      setError('Please enter your email address')
+      return
+    }
+
+    setIsResending(true)
+    setError(null)
+
+    try {
+      const baseUrl = getAppBaseUrl()
+      const redirectUrl = `${baseUrl}/host/auth/callback`
+
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: resendEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      })
+
+      if (resendError) {
+        setError(resendError.message)
+      } else {
+        setResendSuccess(true)
+        setShowResendForm(false)
+      }
+    } catch {
+      setError('Failed to resend verification email. Please try again.')
+    } finally {
+      setIsResending(false)
+    }
+  }
 
   // Check if already logged in
   useEffect(() => {
@@ -168,10 +227,65 @@ export default function HostLoginPage() {
 
         {/* Login Form */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-xl p-6 sm:p-8">
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              {successMessage}
+            </div>
+          )}
+
+          {/* Resend Success Message */}
+          {resendSuccess && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              Verification email sent! Please check your inbox and spam folder.
+            </div>
+          )}
+
+          {/* Resend Verification Form */}
+          {showResendForm && !resendSuccess && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <h3 className="font-medium text-amber-800 mb-2 flex items-center gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Resend Verification Email
+              </h3>
+              <p className="text-amber-700 text-sm mb-3">
+                Enter your email to receive a new verification link.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={resendEmail}
+                  onChange={(e) => setResendEmail(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {isResending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
                 {error}
+                {!showResendForm && error.includes('verify') && (
+                  <button
+                    type="button"
+                    onClick={() => setShowResendForm(true)}
+                    className="block mt-2 text-emerald-600 hover:text-emerald-700 font-medium underline"
+                  >
+                    Resend verification email
+                  </button>
+                )}
               </div>
             )}
 

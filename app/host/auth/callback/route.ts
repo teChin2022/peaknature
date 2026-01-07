@@ -13,6 +13,14 @@ export async function GET(request: Request) {
   // Handle errors from Supabase
   if (error_param) {
     console.error('Host auth callback error:', error_param, error_description)
+    
+    // Check for expired/invalid link error
+    if (error_description?.includes('expired') || error_description?.includes('invalid')) {
+      return NextResponse.redirect(
+        new URL(`/host/login?error=${encodeURIComponent('Your verification link has expired or was already used. Please try logging in - if your email is verified, you can access your account. Otherwise, try registering again.')}&showResend=true`, requestUrl.origin)
+      )
+    }
+    
     return NextResponse.redirect(
       new URL(`/host/login?error=${encodeURIComponent(error_description || error_param)}`, requestUrl.origin)
     )
