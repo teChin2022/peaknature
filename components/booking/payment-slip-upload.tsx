@@ -12,6 +12,14 @@ import { QRUploadModal } from './qr-upload-modal'
 import { useTranslations } from 'next-intl'
 import { useLanguage } from '@/components/providers/language-provider'
 
+// Generate SHA-256 hash of file content for duplicate detection
+async function generateFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 interface PaymentSlipUploadProps {
   roomId: string
   checkIn: string
@@ -44,6 +52,7 @@ export function PaymentSlipUpload({
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const [slipUrl, setSlipUrl] = useState<string | null>(null)
+  const [slipContentHash, setSlipContentHash] = useState<string | null>(null) // Hash of actual image content
   const [isUploading, setIsUploading] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -74,6 +83,7 @@ export function PaymentSlipUpload({
 
     setError(null)
     setSlipUrl(null)
+    setSlipContentHash(null)
 
     // Create preview
     const reader = new FileReader()
@@ -85,6 +95,10 @@ export function PaymentSlipUpload({
     // Upload to Supabase Storage
     setIsUploading(true)
     try {
+      // Generate content hash FIRST for duplicate detection
+      const contentHash = await generateFileHash(file)
+      console.log('[PaymentSlipUpload] Content hash generated:', contentHash.substring(0, 16) + '...')
+      
       const fileName = `payment-slips/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       
       const { data, error: uploadErr } = await supabase.storage
@@ -106,6 +120,7 @@ export function PaymentSlipUpload({
         .getPublicUrl(data.path)
 
       setSlipUrl(publicUrl)
+      setSlipContentHash(contentHash) // Store content hash for verification
 
     } catch (err) {
       console.error('Upload error:', err)
@@ -216,6 +231,7 @@ export function PaymentSlipUpload({
         body: JSON.stringify({
           bookingId: bookingToUse.id,
           slipUrl: slipUrl,
+          slipContentHash: slipContentHash, // Send content hash for duplicate detection
           expectedAmount: totalPrice,
           tenantId
         })
@@ -261,7 +277,7 @@ export function PaymentSlipUpload({
       setError('An error occurred. Please try again.')
       setIsVerifying(false)
     }
-  }, [supabase, slipUrl, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes])
+  }, [supabase, slipUrl, slipContentHash, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -293,6 +309,7 @@ export function PaymentSlipUpload({
   const clearPreview = useCallback(() => {
     setPreview(null)
     setSlipUrl(null)
+    setSlipContentHash(null)
     setError(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -300,8 +317,9 @@ export function PaymentSlipUpload({
   }, [])
 
   // Handle upload from QR code (phone upload)
-  const handleQRUploadComplete = useCallback((uploadedSlipUrl: string) => {
+  const handleQRUploadComplete = useCallback((uploadedSlipUrl: string, contentHash?: string) => {
     setSlipUrl(uploadedSlipUrl)
+    setSlipContentHash(contentHash || null) // Store content hash from mobile upload
     setPreview(uploadedSlipUrl)
     setShowQRModal(false)
   }, [])

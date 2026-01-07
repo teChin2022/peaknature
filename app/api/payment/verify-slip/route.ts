@@ -11,9 +11,23 @@ import { apiLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase/server'
 
-// Generate a hash of the slip URL for duplicate detection
+// Generate a hash of the slip URL for duplicate detection (fallback if no content hash provided)
 function generateSlipHash(slipUrl: string): string {
   return crypto.createHash('sha256').update(slipUrl).digest('hex')
+}
+
+// Download image and calculate content hash (for cases when content hash is not provided)
+async function calculateImageContentHash(imageUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl)
+    if (!response.ok) return null
+    
+    const buffer = await response.arrayBuffer()
+    return crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex')
+  } catch (error) {
+    console.error('[verify-slip] Failed to calculate image content hash:', error)
+    return null
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -31,8 +45,8 @@ export async function POST(request: NextRequest) {
 
     debugStep = 'parse-body'
     const body = await request.json()
-    const { bookingId, slipUrl, expectedAmount, tenantId } = body
-    console.log('[verify-slip] Request:', { bookingId, tenantId, hasSlipUrl: !!slipUrl, expectedAmount })
+    const { bookingId, slipUrl, slipContentHash: providedContentHash, expectedAmount, tenantId } = body
+    console.log('[verify-slip] Request:', { bookingId, tenantId, hasSlipUrl: !!slipUrl, hasContentHash: !!providedContentHash, expectedAmount })
 
     if (!bookingId || !slipUrl) {
       return NextResponse.json(
@@ -119,24 +133,37 @@ export async function POST(request: NextRequest) {
       ...(tenant.settings as TenantSettings || {})
     }
 
-    // Generate slip URL hash for duplicate detection
-    const slipUrlHash = generateSlipHash(slipUrl)
+    // Use content hash for duplicate detection (more reliable than URL hash)
+    // If client provided content hash, use it; otherwise calculate from image
+    debugStep = 'calculate-content-hash'
+    let contentHash = providedContentHash
+    if (!contentHash) {
+      console.log('[verify-slip] No content hash provided, calculating from image...')
+      contentHash = await calculateImageContentHash(slipUrl)
+      if (!contentHash) {
+        // Fallback to URL hash if content hash calculation fails
+        console.log('[verify-slip] Content hash calculation failed, falling back to URL hash')
+        contentHash = generateSlipHash(slipUrl)
+      }
+    }
+    console.log('[verify-slip] Using content hash:', contentHash.substring(0, 16) + '...')
 
-    // ALWAYS check for duplicate slip by URL hash first
+    // ALWAYS check for duplicate slip by content hash first
+    debugStep = 'check-duplicate'
     const { data: existingByHash } = await supabase
       .from('verified_slips')
       .select('id, booking_id, verified_at')
-      .eq('slip_url_hash', slipUrlHash)
+      .eq('slip_url_hash', contentHash)
       .maybeSingle()
 
     if (existingByHash) {
-      console.log('[verify-slip] DUPLICATE DETECTED!', { slipUrlHash, existingBookingId: existingByHash.booking_id })
+      console.log('[verify-slip] DUPLICATE DETECTED!', { contentHash: contentHash.substring(0, 16), existingBookingId: existingByHash.booking_id })
       return NextResponse.json({
         success: false,
         error: 'This payment slip has already been used for another booking. Please make a new payment and upload the new slip.'
       })
     }
-    console.log('[verify-slip] No duplicate found, proceeding...', { slipUrlHash })
+    console.log('[verify-slip] No duplicate found, proceeding...', { contentHash: contentHash.substring(0, 16) })
 
     // Check if EasySlip verification is enabled
     const easySlipApiKey = process.env.EASYSLIP_API_KEY
@@ -160,9 +187,10 @@ export async function POST(request: NextRequest) {
     const [updateResult, slipResult, auditResult] = await Promise.all([
       supabase.from('bookings').update(updateData).eq('id', bookingId),
       // Use adminClient to bypass RLS for verified_slips insert
+      // Store content hash (not URL hash) for proper duplicate detection
       adminClient.from('verified_slips').insert({
         trans_ref: null,
-        slip_url_hash: slipUrlHash,
+        slip_url_hash: contentHash, // Now using content hash, not URL hash
         booking_id: bookingId,
         tenant_id: tenantId,
         amount: expectedAmount,
@@ -202,7 +230,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
-    console.log('[verify-slip] Slip stored successfully for duplicate detection', { slipUrlHash })
+    console.log('[verify-slip] Slip stored successfully for duplicate detection', { contentHash: contentHash.substring(0, 16) })
     if (auditResult.error) logger.error('Failed to log payment verification', auditResult.error)
 
     // Only check the booking update result (critical operation)

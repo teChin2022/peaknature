@@ -7,8 +7,16 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
 
+// Generate SHA-256 hash of file content for duplicate detection
+async function generateFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 interface SlipUploadProps {
-  onUpload: (slipUrl: string) => void
+  onUpload: (slipUrl: string, contentHash?: string) => void
   isVerifying: boolean
   error: string | null
   primaryColor: string
@@ -48,6 +56,10 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
     // Upload to Supabase Storage
     setIsUploading(true)
     try {
+      // Generate content hash FIRST for duplicate detection
+      const contentHash = await generateFileHash(file)
+      console.log('[SlipUpload] Content hash generated:', contentHash.substring(0, 16) + '...')
+      
       const fileName = `payment-slips/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       
       const { data, error: uploadErr } = await supabase.storage
@@ -68,15 +80,15 @@ export function SlipUpload({ onUpload, isVerifying, error, primaryColor }: SlipU
         .from('bookings')
         .getPublicUrl(data.path)
 
-      // Trigger verification
-      onUpload(publicUrl)
+      // Trigger verification with content hash
+      onUpload(publicUrl, contentHash)
     } catch (err) {
       console.error('Upload error:', err)
       setUploadError(t('errorUploadFailed'))
     } finally {
       setIsUploading(false)
     }
-  }, [supabase, onUpload])
+  }, [supabase, onUpload, t])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

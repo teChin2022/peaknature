@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS upload_tokens (
   total_price DECIMAL(10, 2) NOT NULL,
   notes TEXT,
   slip_url TEXT,
+  slip_content_hash TEXT,  -- SHA-256 hash of image content for duplicate detection
   is_uploaded BOOLEAN DEFAULT FALSE,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -429,6 +430,7 @@ CREATE INDEX IF NOT EXISTS idx_verified_slips_booking_id ON verified_slips(booki
 -- Upload tokens indexes
 CREATE INDEX IF NOT EXISTS idx_upload_tokens_token ON upload_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_upload_tokens_expires ON upload_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_upload_tokens_content_hash ON upload_tokens(slip_content_hash);
 
 -- Subscription payments indexes
 CREATE INDEX IF NOT EXISTS idx_subscription_payments_tenant ON subscription_payments(tenant_id);

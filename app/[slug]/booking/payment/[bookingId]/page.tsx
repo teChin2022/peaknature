@@ -169,20 +169,21 @@ export default function PaymentPage() {
   }, [expiresAt, isExpired, paymentSuccess])
 
   // Handle slip upload and verification
-  const handleSlipUpload = useCallback(async (slipUrl: string) => {
+  const handleSlipUpload = useCallback(async (slipUrl: string, contentHash?: string) => {
     if (!booking || !tenant) return
 
     setIsVerifying(true)
     setVerificationError(null)
 
     try {
-      // Call verification API
+      // Call verification API with content hash for duplicate detection
       const response = await fetch('/api/payment/verify-slip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: booking.id,
           slipUrl,
+          slipContentHash: contentHash, // Send content hash for duplicate detection
           expectedAmount: booking.total_price,
           tenantId: tenant.id
         })

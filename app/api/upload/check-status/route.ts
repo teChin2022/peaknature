@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Get token status
     const { data: tokenData, error: tokenError } = await supabase
       .from('upload_tokens')
-      .select('is_uploaded, slip_url, expires_at')
+      .select('is_uploaded, slip_url, slip_content_hash, expires_at')
       .eq('token', token)
       .single()
 
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       success: true,
       isUploaded: tokenData.is_uploaded,
       slipUrl: tokenData.slip_url,
+      slipContentHash: tokenData.slip_content_hash, // Include content hash for duplicate detection
       expired: false,
     })
 

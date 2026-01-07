@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import crypto from 'crypto'
+
+// Generate SHA-256 hash of file content for duplicate detection
+function generateContentHash(buffer: Buffer): string {
+  return crypto.createHash('sha256').update(buffer).digest('hex')
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,6 +59,10 @@ export async function POST(request: NextRequest) {
     // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer())
     
+    // Generate content hash FIRST for duplicate detection
+    const contentHash = generateContentHash(buffer)
+    console.log('[mobile-upload] Content hash generated:', contentHash.substring(0, 16) + '...')
+    
     // Generate unique filename
     const fileName = `payment-slips/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
@@ -78,11 +88,12 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .getPublicUrl(uploadData.path)
 
-    // Update token with slip URL
+    // Update token with slip URL and content hash
     const { error: updateError } = await supabase
       .from('upload_tokens')
       .update({
         slip_url: publicUrl,
+        slip_content_hash: contentHash, // Store content hash for duplicate detection
         is_uploaded: true,
       })
       .eq('token', token)

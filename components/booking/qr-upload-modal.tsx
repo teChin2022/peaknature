@@ -14,7 +14,7 @@ import {
 interface QRUploadModalProps {
   isOpen: boolean
   onClose: () => void
-  onUploadComplete: (slipUrl: string) => void
+  onUploadComplete: (slipUrl: string, contentHash?: string) => void
   tenantId: string
   roomId: string
   checkIn: string
@@ -106,9 +106,9 @@ export function QRUploadModal({
         if (result.isUploaded && result.slipUrl) {
           setIsUploaded(true)
           clearInterval(pollInterval)
-          // Wait a moment then call completion handler
+          // Wait a moment then call completion handler with content hash
           setTimeout(() => {
-            onUploadComplete(result.slipUrl)
+            onUploadComplete(result.slipUrl, result.slipContentHash)
           }, 1500)
         }
       } catch (err) {
