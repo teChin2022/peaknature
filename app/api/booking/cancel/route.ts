@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { differenceInHours, parseISO, format } from 'date-fns'
-import { sendLineMessage, sendEmail } from '@/lib/notifications'
+import { sendLineMessage, sendEmail, generateBookingCancellationNotification, generateGuestCancellationEmail } from '@/lib/notifications'
 import { formatPrice } from '@/lib/currency'
 import { TenantSettings, defaultTenantSettings } from '@/types/database'
 import { apiLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit'
@@ -140,41 +140,21 @@ export async function POST(request: NextRequest) {
       const refundAmount = formatPrice(booking.total_price, currency)
       const bookingRef = bookingId.slice(0, 8).toUpperCase()
 
-      const lineMessage = `🚫 BOOKING CANCELLED
-
-Ref: ${bookingRef}
-Room: ${roomName}
-Guest: ${guestName}
-Dates: ${checkIn} - ${checkOut}
-
-📝 Reason: ${reason}
-
-💰 REFUND REQUIRED: ${refundAmount}
-
-Guest Contact:
-📧 ${guestEmail}
-📱 ${guestPhone}
-
-Please process the refund.`
-
-      const emailHtml = `
-        <h2 style="color: #dc2626;">🚫 Booking Cancelled</h2>
-        <p>A guest has cancelled their booking. Please process the refund.</p>
-        
-        <table style="border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Reference</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${bookingRef}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Room</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${roomName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Guest</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${guestName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dates</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${checkIn} - ${checkOut}</td></tr>
-          <tr style="background: #fef2f2;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Refund Amount</strong></td><td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${refundAmount}</td></tr>
-        </table>
-        
-        <h3>📝 Cancellation Reason</h3>
-        <p style="background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #dc2626;">${reason}</p>
-        
-        <h3>Guest Contact Information</h3>
-        <p>📧 Email: ${guestEmail}<br>📱 Phone: ${guestPhone}</p>
-      `
+      // Generate host cancellation notification with i18n and tenant branding
+      const hostNotification = await generateBookingCancellationNotification({
+        guestName,
+        guestEmail,
+        guestPhone,
+        roomName,
+        checkIn,
+        checkOut,
+        refundAmount,
+        bookingRef,
+        reason,
+        primaryColor: tenant.primary_color,
+        language: 'th', // Default to Thai for host notifications
+        tenantName: tenant.name,
+      })
 
       // Send LINE notification
       if (settings.payment?.line_channel_access_token && settings.payment?.line_user_id) {
@@ -182,20 +162,48 @@ Please process the refund.`
           await sendLineMessage({
             channelAccessToken: settings.payment.line_channel_access_token,
             userId: settings.payment.line_user_id,
-            message: lineMessage
+            message: hostNotification.lineMessage
           })
         } catch (e) { console.error('LINE notification error:', e) }
       }
 
-      // Send email notification
+      // Send email notification to host
       if (settings.contact?.email) {
         try {
           await sendEmail({
             to: settings.contact.email,
-            subject: `🚫 Booking Cancelled - ${bookingRef} - Refund Required`,
-            html: emailHtml
+            subject: hostNotification.emailSubject,
+            html: hostNotification.emailHtml,
+            fromName: tenant.name,
           })
-        } catch (e) { console.error('Email notification error:', e) }
+        } catch (e) { console.error('Host email notification error:', e) }
+      }
+
+      // Send cancellation confirmation email to guest
+      if (guestEmail && guestEmail !== 'N/A') {
+        try {
+          const guestNotification = await generateGuestCancellationEmail({
+            guestName,
+            roomName,
+            checkIn,
+            checkOut,
+            refundAmount,
+            bookingRef,
+            reason,
+            tenantName: tenant.name,
+            tenantSlug: tenant.slug,
+            primaryColor: tenant.primary_color,
+            language: 'th', // Default to Thai for guest notifications
+          })
+
+          await sendEmail({
+            to: guestEmail,
+            subject: guestNotification.emailSubject,
+            html: guestNotification.emailHtml,
+            fromName: tenant.name,
+            replyTo: settings.contact?.email,
+          })
+        } catch (e) { console.error('Guest email notification error:', e) }
       }
     }
 

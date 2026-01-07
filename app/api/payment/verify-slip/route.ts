@@ -352,7 +352,7 @@ export async function POST(request: NextRequest) {
         const totalPrice = formatPrice(booking.total_price, currency)
         const bookingRef = bookingId.slice(0, 8).toUpperCase()
 
-        const notifications = generateBookingNotification({
+        const notifications = await generateBookingNotification({
           guestName,
           roomName,
           checkIn,
@@ -361,6 +361,9 @@ export async function POST(request: NextRequest) {
           totalPrice,
           bookingRef,
           notes: booking.notes,
+          primaryColor: tenant.primary_color,
+          language: 'th', // Default to Thai for host notifications
+          tenantName: tenant.name,
         })
 
         // Send all notifications in parallel
@@ -413,7 +416,7 @@ export async function POST(request: NextRequest) {
         // Email to guest
         const guestEmail = booking.user?.email
         if (guestEmail) {
-          const guestNotification = generateGuestConfirmationEmail({
+          const guestNotification = await generateGuestConfirmationEmail({
             guestName,
             roomName,
             checkIn,
@@ -427,6 +430,7 @@ export async function POST(request: NextRequest) {
             tenantSlug: tenant.slug,
             primaryColor: tenant.primary_color,
             notes: booking.notes,
+            language: 'th', // Default to Thai for guest notifications
           })
 
           notificationPromises.push(
