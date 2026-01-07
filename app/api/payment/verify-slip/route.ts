@@ -128,10 +128,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Deep merge settings with defaults (especially for nested payment object)
+    const tenantSettings = tenant.settings as TenantSettings || {}
     const settings: TenantSettings = {
       ...defaultTenantSettings,
-      ...(tenant.settings as TenantSettings || {})
+      ...tenantSettings,
+      // Deep merge payment settings
+      payment: {
+        ...defaultTenantSettings.payment,
+        ...(tenantSettings.payment || {})
+      }
     }
+    
+    // Debug: Log what settings we're using
+    console.log('[verify-slip] Tenant settings:', {
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      easyslip_enabled: settings.payment?.easyslip_enabled,
+      hasApiKey: !!process.env.EASYSLIP_API_KEY,
+      rawPaymentSettings: tenantSettings.payment
+    })
 
     // Use content hash for duplicate detection (more reliable than URL hash)
     // If client provided content hash, use it; otherwise calculate from image
@@ -190,10 +206,22 @@ export async function POST(request: NextRequest) {
     const easySlipApiKey = process.env.EASYSLIP_API_KEY
     const shouldVerifyWithEasySlip = settings.payment?.easyslip_enabled && easySlipApiKey
 
-    // LOG: Will verify in background or skip
+    // LOG: Will verify in background or skip - with detailed reason
     if (!shouldVerifyWithEasySlip) {
-      logger.info('EasySlip disabled - instant confirmation', { bookingId })
+      const reason = !easySlipApiKey 
+        ? 'EASYSLIP_API_KEY not set in environment' 
+        : !settings.payment?.easyslip_enabled 
+          ? 'easyslip_enabled is false in tenant settings'
+          : 'unknown'
+      console.log('[verify-slip] ⚠️ EasySlip DISABLED - instant confirmation', { 
+        bookingId, 
+        reason,
+        hasApiKey: !!easySlipApiKey,
+        tenantEasyslipEnabled: settings.payment?.easyslip_enabled 
+      })
+      logger.info('EasySlip disabled - instant confirmation', { bookingId, reason })
     } else {
+      console.log('[verify-slip] ✅ EasySlip ENABLED - will verify in background', { bookingId })
       logger.info('EasySlip enabled - will verify in BACKGROUND after response', { bookingId })
     }
 
