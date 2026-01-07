@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { verifySlip, getEasySlipErrorMessage } from '@/lib/easyslip'
+import { verifySlip } from '@/lib/easyslip'
 import { sendLineMessage, sendEmail, generateBookingNotification, generateGuestConfirmationEmail } from '@/lib/notifications'
 import { TenantSettings, defaultTenantSettings } from '@/types/database'
 import { formatPrice } from '@/lib/currency'
-import { format, parseISO, differenceInHours } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import crypto from 'crypto'
 import { reportCriticalErrorServer } from '@/lib/error-handler'
 import { apiLimiter, getClientIP, rateLimitResponse } from '@/lib/rate-limit'
@@ -129,11 +129,13 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingByHash) {
+      console.log('[verify-slip] DUPLICATE DETECTED!', { slipUrlHash, existingBookingId: existingByHash.booking_id })
       return NextResponse.json({
         success: false,
         error: 'This payment slip has already been used for another booking. Please make a new payment and upload the new slip.'
       })
     }
+    console.log('[verify-slip] No duplicate found, proceeding...', { slipUrlHash })
 
     // Check if EasySlip verification is enabled
     const easySlipApiKey = process.env.EASYSLIP_API_KEY
@@ -183,8 +185,23 @@ export async function POST(request: NextRequest) {
       })
     ])
     
-    // Log non-critical errors (don't block the response)
-    if (slipResult.error) logger.error('Failed to store verified slip', slipResult.error)
+    // CHECK: If slip insert failed, this is CRITICAL - rollback booking!
+    if (slipResult.error) {
+      console.error('[verify-slip] CRITICAL: Failed to store verified slip!', slipResult.error)
+      
+      // Rollback: Cancel the booking since we can't prevent duplicate slips
+      await adminClient.from('bookings').update({ 
+        status: 'cancelled', 
+        notes: '[System] Failed to verify slip - please try again' 
+      }).eq('id', bookingId)
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to verify payment. Please try again.'
+      }, { status: 500 })
+    }
+    
+    console.log('[verify-slip] Slip stored successfully for duplicate detection', { slipUrlHash })
     if (auditResult.error) logger.error('Failed to log payment verification', auditResult.error)
 
     // Only check the booking update result (critical operation)

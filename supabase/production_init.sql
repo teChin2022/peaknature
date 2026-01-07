@@ -243,7 +243,8 @@ CREATE TABLE IF NOT EXISTS verified_slips (
   verified_at TIMESTAMPTZ DEFAULT NOW(),
   slip_url TEXT,
   easyslip_data JSONB,
-  CONSTRAINT unique_trans_ref_if_not_null UNIQUE (trans_ref)
+  CONSTRAINT unique_trans_ref_if_not_null UNIQUE (trans_ref),
+  CONSTRAINT unique_slip_url_hash UNIQUE (slip_url_hash)
 );
 
 -- -----------------------------------------------------
