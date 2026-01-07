@@ -17,8 +17,15 @@ export async function proxy(request: NextRequest) {
   
   // Check if this is a host route
   if (pathname.startsWith('/host')) {
-    // Allow access to login and register pages without auth
-    if (pathname === '/host/login' || pathname === '/host/register') {
+    // Allow access to public host pages without auth
+    const publicHostRoutes = [
+      '/host/login', 
+      '/host/register', 
+      '/host/auth/callback',
+      '/host/forgot-password',
+      '/host/reset-password'
+    ]
+    if (publicHostRoutes.some(route => pathname.startsWith(route))) {
       return supabaseResponse
     }
     

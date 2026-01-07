@@ -58,6 +58,27 @@ export function RegisterForm({ tenant, redirectTo }: RegisterFormProps) {
     setError(null)
 
     try {
+      // Check if email already exists before attempting registration
+      try {
+        const emailCheckResponse = await fetch('/api/user/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: data.email }),
+        })
+        
+        if (emailCheckResponse.ok) {
+          const emailCheckData = await emailCheckResponse.json()
+          if (emailCheckData.exists) {
+            setError(tErrors('emailAlreadyExists'))
+            setIsLoading(false)
+            return
+          }
+        }
+      } catch (emailCheckError) {
+        console.error('Email check failed:', emailCheckError)
+        // Continue with registration - the signUp will handle duplicate detection as fallback
+      }
+
       // Use NEXT_PUBLIC_APP_URL if available, otherwise fallback to window.location.origin
       const baseUrl = getAppBaseUrl()
       const redirectUrl = `${baseUrl}/${tenant.slug}/auth/callback?next=${encodeURIComponent(redirectTo || `/${tenant.slug}`)}`

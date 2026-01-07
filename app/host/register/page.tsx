@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { getAppBaseUrl } from '@/lib/utils'
 
 const registerSchema = z.object({
   // User info
@@ -74,7 +75,31 @@ export default function HostRegisterPage() {
         return
       }
 
-      // Create user account
+      // Check if email already exists before attempting registration
+      try {
+        const emailCheckResponse = await fetch('/api/user/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: data.email }),
+        })
+        
+        if (emailCheckResponse.ok) {
+          const emailCheckData = await emailCheckResponse.json()
+          if (emailCheckData.exists) {
+            setError('An account with this email already exists. Please login instead.')
+            setIsLoading(false)
+            return
+          }
+        }
+      } catch (emailCheckError) {
+        console.error('Email check failed:', emailCheckError)
+        // Continue with registration - the signUp will handle duplicate detection as fallback
+      }
+
+      // Create user account with proper email redirect
+      const baseUrl = getAppBaseUrl()
+      const emailRedirectUrl = `${baseUrl}/host/auth/callback`
+      
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -82,11 +107,30 @@ export default function HostRegisterPage() {
           data: {
             full_name: data.fullName,
           },
+          emailRedirectTo: emailRedirectUrl,
         },
+      })
+
+      console.log('Host SignUp response:', { 
+        user: authData?.user?.id,
+        email: authData?.user?.email,
+        emailConfirmedAt: authData?.user?.email_confirmed_at,
+        session: authData?.session ? 'SESSION EXISTS' : 'NO SESSION',
+        identities: authData?.user?.identities,
+        identitiesCount: authData?.user?.identities?.length ?? 'undefined',
+        confirmationSentAt: authData?.user?.confirmation_sent_at,
+        emailRedirectUrl,
+        error: signUpError 
       })
 
       if (signUpError) {
         setError(signUpError.message)
+        return
+      }
+
+      // Check if user already exists (identities will be empty array)
+      if (authData?.user?.identities?.length === 0) {
+        setError('An account with this email already exists. Please login instead.')
         return
       }
 
