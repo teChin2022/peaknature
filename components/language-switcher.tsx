@@ -2,7 +2,7 @@
 
 import { Globe } from 'lucide-react'
 import { useLanguage } from '@/components/providers/language-provider'
-import { Locale, locales, localeNames, localeFlags } from '@/lib/i18n'
+import { Locale, locales, localeNames, localeFlags } from '@/lib/i18n-config'
 import {
   Select,
   SelectContent,

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { IntlProvider } from 'next-intl'
-import { Locale, defaultLocale, locales } from '@/lib/i18n'
+import { Locale, defaultLocale, locales } from '@/lib/i18n-config'
 import { createClient } from '@/lib/supabase/client'
 
 // Import messages statically

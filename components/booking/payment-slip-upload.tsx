@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { QRUploadModal } from './qr-upload-modal'
 import { useTranslations } from 'next-intl'
+import type { User } from '@supabase/supabase-js'
 
 // Generate SHA-256 hash of file content for duplicate detection
 async function generateFileHash(file: File): Promise<string> {
@@ -65,6 +66,28 @@ export function PaymentSlipUpload({
   const [error, setError] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [showQRModal, setShowQRModal] = useState(false)
+  
+  // Pre-warm auth session state - this prevents slow first upload
+  const [cachedUser, setCachedUser] = useState<User | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+
+  // Pre-warm auth session on component mount
+  // This ensures the first upload is fast by caching the user session ahead of time
+  useEffect(() => {
+    console.log('[PaymentSlipUpload] Pre-warming auth session...')
+    const warmUpAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setCachedUser(user)
+        console.log('[PaymentSlipUpload] Auth pre-warmed:', user?.id?.substring(0, 8) + '...')
+      } catch (err) {
+        console.error('[PaymentSlipUpload] Auth pre-warm failed:', err)
+      } finally {
+        setIsAuthLoading(false)
+      }
+    }
+    warmUpAuth()
+  }, [supabase])
 
   // Sync with transport note from parent
   useEffect(() => {
@@ -101,8 +124,16 @@ export function PaymentSlipUpload({
     // Upload to Supabase Storage
     setIsUploading(true)
     try {
-      // Check if user is authenticated first
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use cached user from pre-warm, or fetch if not available
+      // This is the key performance fix - we don't wait for getUser() on every upload
+      let user = cachedUser
+      if (!user) {
+        console.log('[PaymentSlipUpload] Cache miss, fetching user...')
+        const { data } = await supabase.auth.getUser()
+        user = data.user
+        if (user) setCachedUser(user)
+      }
+      
       if (!user) {
         console.error('[PaymentSlipUpload] User not authenticated')
         setError(t('pleaseLoginFirst'))
@@ -152,7 +183,7 @@ export function PaymentSlipUpload({
     } finally {
       setIsUploading(false)
     }
-  }, [supabase])
+  }, [supabase, cachedUser, t, tPage])
 
   // Step 2: Handle confirm button click (create booking + verify)
   const handleConfirmPayment = useCallback(async () => {
@@ -169,8 +200,14 @@ export function PaymentSlipUpload({
     let isNewBooking = false
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use cached user from pre-warm, or fetch if not available
+      let user = cachedUser
+      if (!user) {
+        console.log('[PaymentSlipUpload] Cache miss in confirm, fetching user...')
+        const { data } = await supabase.auth.getUser()
+        user = data.user
+        if (user) setCachedUser(user)
+      }
       
       if (!user) {
         setError(t('pleaseLoginOrCreateAccount'))
@@ -308,7 +345,7 @@ export function PaymentSlipUpload({
       setError(t('anErrorOccurred'))
       setIsVerifying(false)
     }
-  }, [supabase, slipUrl, slipContentHash, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes, t])
+  }, [supabase, slipUrl, slipContentHash, roomId, checkIn, checkOut, guests, totalPrice, tenantId, tenantSlug, router, notes, t, cachedUser])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

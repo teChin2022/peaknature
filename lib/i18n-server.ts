@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { Locale, locales, defaultLocale } from './i18n'
+import { Locale, locales, defaultLocale } from './i18n-config'
 
 // Get locale from cookie for server components
 export async function getLocaleFromCookies(): Promise<Locale> {

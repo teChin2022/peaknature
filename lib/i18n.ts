@@ -1,20 +1,9 @@
 import { getRequestConfig } from 'next-intl/server'
 import { cookies } from 'next/headers'
+import { Locale, locales, defaultLocale } from './i18n-config'
 
-export type Locale = 'th' | 'en'
-
-export const locales: Locale[] = ['th', 'en']
-export const defaultLocale: Locale = 'th'
-
-export const localeNames: Record<Locale, string> = {
-  th: 'ไทย',
-  en: 'English'
-}
-
-export const localeFlags: Record<Locale, string> = {
-  th: '🇹🇭',
-  en: '🇺🇸'
-}
+// Re-export for backwards compatibility (but prefer importing from i18n-config directly)
+export { Locale, locales, defaultLocale, localeNames, localeFlags } from './i18n-config'
 
 export default getRequestConfig(async () => {
   // Get locale from cookie or use default
@@ -29,4 +18,3 @@ export default getRequestConfig(async () => {
     messages: (await import(`../messages/${locale}.json`)).default
   }
 })
-

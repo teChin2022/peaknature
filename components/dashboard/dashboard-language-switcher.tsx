@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useLanguage } from '@/components/providers/language-provider'
-import { localeNames, localeFlags } from '@/lib/i18n'
+import { localeNames, localeFlags } from '@/lib/i18n-config'
 import { useTranslations } from 'next-intl'
 
 interface DashboardLanguageSwitcherProps {

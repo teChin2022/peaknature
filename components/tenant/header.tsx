@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useLanguage } from '@/components/providers/language-provider'
-import { locales, localeNames, localeFlags, Locale } from '@/lib/i18n'
+import { locales, localeNames, localeFlags, Locale } from '@/lib/i18n-config'
 import { useTranslations } from 'next-intl'
 
 interface TenantHeaderProps {
