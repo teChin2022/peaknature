@@ -35,8 +35,15 @@ async function calculateImageContentHash(imageUrl: string): Promise<string | nul
 }
 
 export async function POST(request: NextRequest) {
+  const requestStartTime = Date.now()
   console.log('[verify-slip] ========== REQUEST RECEIVED ==========')
   let debugStep = 'init'
+  
+  // Helper to log timing
+  const logTiming = (step: string) => {
+    console.log(`[verify-slip] ⏱️ ${step}: ${Date.now() - requestStartTime}ms`)
+  }
+  
   try {
     // Rate limiting - 10 requests per minute per IP
     debugStep = 'rate-limit'
@@ -46,11 +53,13 @@ export async function POST(request: NextRequest) {
       logger.warn('Rate limit exceeded for payment verification', { ip: clientIP })
       return rateLimitResponse(reset)
     }
+    logTiming('rate-limit-check')
 
     debugStep = 'parse-body'
     const body = await request.json()
     const { bookingId, slipUrl, slipContentHash: providedContentHash, expectedAmount, tenantId } = body
     console.log('[verify-slip] Request:', { bookingId, tenantId, hasSlipUrl: !!slipUrl, hasContentHash: !!providedContentHash, expectedAmount })
+    logTiming('parse-body')
 
     if (!bookingId || !slipUrl) {
       return NextResponse.json(
@@ -61,11 +70,11 @@ export async function POST(request: NextRequest) {
 
     debugStep = 'create-supabase'
     const supabase = await createClient()
-    console.log('[verify-slip] Supabase client created')
+    logTiming('create-supabase')
 
     debugStep = 'create-admin-client'
     const adminClient = createAdminClient()
-    console.log('[verify-slip] Admin client created')
+    logTiming('create-admin-client')
 
     // Run auth check, booking fetch, and tenant fetch in parallel for speed
     debugStep = 'fetch-data'
@@ -82,6 +91,7 @@ export async function POST(request: NextRequest) {
         .eq('id', tenantId)
         .single()
     ])
+    logTiming('fetch-data-parallel')
     console.log('[verify-slip] Data fetched', { hasUser: !!authResult.data?.user, hasBooking: !!bookingResult.data, hasTenant: !!tenantResult.data })
 
     const user = authResult.data?.user
@@ -160,9 +170,11 @@ export async function POST(request: NextRequest) {
     let hashSource = 'client-provided'
     
     if (!contentHash) {
-      console.log('[verify-slip] ⚠️ No content hash provided by client, calculating from image...')
+      console.log('[verify-slip] ⚠️ No content hash provided by client, calculating from image (THIS IS SLOW!)...')
       hashSource = 'server-calculated'
+      const hashCalcStart = Date.now()
       contentHash = await calculateImageContentHash(slipUrl)
+      console.log(`[verify-slip] ⚠️ Image download + hash took ${Date.now() - hashCalcStart}ms`)
       if (!contentHash) {
         // Fallback to URL hash if content hash calculation fails
         console.log('[verify-slip] ⚠️ Content hash calculation failed, falling back to URL hash (LESS RELIABLE)')
@@ -170,6 +182,7 @@ export async function POST(request: NextRequest) {
         contentHash = generateSlipHash(slipUrl)
       }
     }
+    logTiming('content-hash')
     console.log('[verify-slip] Using content hash:', { 
       hash: contentHash.substring(0, 16) + '...', 
       source: hashSource,
@@ -183,6 +196,7 @@ export async function POST(request: NextRequest) {
       .select('id, booking_id, verified_at')
       .eq('slip_url_hash', contentHash)
       .maybeSingle()
+    logTiming('duplicate-check')
 
     if (duplicateCheckError) {
       console.error('[verify-slip] Error checking for duplicates:', duplicateCheckError)
@@ -266,6 +280,7 @@ export async function POST(request: NextRequest) {
         success: true
       })
     ])
+    logTiming('db-updates-parallel')
     
     // CHECK: If slip insert failed, this is CRITICAL - rollback booking!
     if (slipResult.error) {
@@ -994,7 +1009,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Return success immediately - user doesn't wait for EasySlip!
-    console.log('[verify-slip] ========== RETURNING SUCCESS ==========', { bookingId })
+    const totalTime = Date.now() - requestStartTime
+    console.log(`[verify-slip] ========== RETURNING SUCCESS in ${totalTime}ms ==========`, { bookingId })
     return NextResponse.json({
       success: true,
       verified: true,
