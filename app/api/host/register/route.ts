@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -50,16 +49,19 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Additional security: only allow registration for users created within the last 5 minutes
+    // Additional security: only allow registration for users created within the last 30 minutes
     const createdAt = new Date(userData.user.created_at)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
     
-    if (createdAt < fiveMinutesAgo) {
+    if (createdAt < thirtyMinutesAgo) {
+      console.log('[Host Register] User created too long ago:', { createdAt, now: new Date() })
       return NextResponse.json(
         { success: false, error: 'Registration window expired. Please try registering again.' },
         { status: 403 }
       )
     }
+    
+    console.log('[Host Register] Processing registration for user:', userId)
     
     // Check if slug is already taken
     const { data: existingTenant } = await adminClient

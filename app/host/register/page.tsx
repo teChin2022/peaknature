@@ -117,6 +117,8 @@ export default function HostRegisterPage() {
       }
 
       if (authData.user) {
+        console.log('[Host Register] User created, setting up tenant and profile...')
+        
         // Use API route to create tenant and set up host profile
         // This uses service role to bypass RLS restrictions
         const registerResponse = await fetch('/api/host/register', {
@@ -132,13 +134,16 @@ export default function HostRegisterPage() {
         })
 
         const registerResult = await registerResponse.json()
+        console.log('[Host Register] API response:', { status: registerResponse.status, result: registerResult })
 
         if (!registerResponse.ok || !registerResult.success) {
           // Registration failed - show error to user
+          console.error('[Host Register] Registration failed:', registerResult.error)
           setError(registerResult.error || 'Failed to register property. Please try again.')
           return
         }
 
+        console.log('[Host Register] Success! Tenant ID:', registerResult.tenantId)
         setSuccess(true)
       }
     } catch {
