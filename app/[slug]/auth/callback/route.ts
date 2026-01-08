@@ -167,4 +167,3 @@ export async function GET(
     new URL(`/${slug}/login?error=${encodeURIComponent('Invalid authentication link.')}`, requestUrl.origin)
   )
 }
-

@@ -355,6 +355,24 @@ npm run lint
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## Initial super_admin
+1. First add user in Authentication -> user, the run this sql.
+INSERT INTO profiles (id, email, full_name, role, is_blocked, phone, created_at)
+SELECT 
+  id,
+  'techin.s001@gmail.com',
+  'Surasak Vivatratanakul',
+  'super_admin',
+  FALSE,
+  '0927845198',
+  NOW()
+FROM auth.users 
+WHERE email = 'techin.s001@gmail.com'
+ON CONFLICT (id) DO UPDATE SET
+  role = 'super_admin',
+  full_name = 'Surasak Vivatratanakul',
+  phone = '0927845198';
+
 ## License
 
 MIT License - see LICENSE file for details
