@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(userId)
     
     if (userError || !userData?.user) {
-      console.error('User verification failed:', userError)
       return NextResponse.json(
         { success: false, error: 'User not found. Please try registering again.' },
         { status: 404 }
@@ -54,14 +53,11 @@ export async function POST(request: NextRequest) {
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
     
     if (createdAt < thirtyMinutesAgo) {
-      console.log('[Host Register] User created too long ago:', { createdAt, now: new Date() })
       return NextResponse.json(
         { success: false, error: 'Registration window expired. Please try registering again.' },
         { status: 403 }
       )
     }
-    
-    console.log('[Host Register] Processing registration for user:', userId)
     
     // Check if slug is already taken
     const { data: existingTenant } = await adminClient
@@ -105,7 +101,6 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (tenantError || !tenantData) {
-      console.error('Tenant creation error:', tenantError)
       return NextResponse.json(
         { success: false, error: 'Failed to create property. Please try again.' },
         { status: 500 }
@@ -126,7 +121,6 @@ export async function POST(request: NextRequest) {
         .eq('id', userId)
       
       if (updateError) {
-        console.error('Profile update error:', updateError)
         // Rollback: delete the tenant
         await adminClient.from('tenants').delete().eq('id', tenantData.id)
         return NextResponse.json(
@@ -147,7 +141,6 @@ export async function POST(request: NextRequest) {
         })
       
       if (insertError) {
-        console.error('Profile insert error:', insertError)
         // Rollback: delete the tenant
         await adminClient.from('tenants').delete().eq('id', tenantData.id)
         return NextResponse.json(
@@ -171,8 +164,7 @@ export async function POST(request: NextRequest) {
           }
         })
       })
-    } catch (notifyError) {
-      console.error('Failed to send notification:', notifyError)
+    } catch {
       // Don't fail the registration for notification errors
     }
     
@@ -182,8 +174,7 @@ export async function POST(request: NextRequest) {
       message: 'Property registered successfully!'
     })
     
-  } catch (error) {
-    console.error('Host registration error:', error)
+  } catch {
     return NextResponse.json(
       { success: false, error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }

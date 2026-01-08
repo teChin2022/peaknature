@@ -105,10 +105,10 @@ export function HostAccountForm({ profile, tenant, isEmailUser }: HostAccountFor
     setError(null)
 
     try {
-      const response = await fetch('/api/user/delete', {
+      // Use host-specific delete endpoint that handles tenant deletion
+      const response = await fetch('/api/host/delete-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isHostAction: true })
       })
 
       const result = await response.json()
@@ -120,8 +120,7 @@ export function HostAccountForm({ profile, tenant, isEmailUser }: HostAccountFor
       // Redirect to home page
       window.location.href = '/?deleted=true'
     } catch (err) {
-      console.error('Delete account error:', err)
-      setError(tErrors('somethingWrong'))
+      setError(err instanceof Error ? err.message : tErrors('somethingWrong'))
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }

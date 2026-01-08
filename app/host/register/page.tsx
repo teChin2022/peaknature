@@ -73,8 +73,7 @@ export default function HostRegisterPage() {
             return
           }
         }
-      } catch (emailCheckError) {
-        console.error('Email check failed:', emailCheckError)
+      } catch {
         // Continue with registration - the signUp will handle duplicate detection as fallback
       }
 
@@ -93,18 +92,6 @@ export default function HostRegisterPage() {
         },
       })
 
-      console.log('Host SignUp response:', { 
-        user: authData?.user?.id,
-        email: authData?.user?.email,
-        emailConfirmedAt: authData?.user?.email_confirmed_at,
-        session: authData?.session ? 'SESSION EXISTS' : 'NO SESSION',
-        identities: authData?.user?.identities,
-        identitiesCount: authData?.user?.identities?.length ?? 'undefined',
-        confirmationSentAt: authData?.user?.confirmation_sent_at,
-        emailRedirectUrl,
-        error: signUpError 
-      })
-
       if (signUpError) {
         setError(signUpError.message)
         return
@@ -117,8 +104,6 @@ export default function HostRegisterPage() {
       }
 
       if (authData.user) {
-        console.log('[Host Register] User created, setting up tenant and profile...')
-        
         // Use API route to create tenant and set up host profile
         // This uses service role to bypass RLS restrictions
         const registerResponse = await fetch('/api/host/register', {
@@ -134,16 +119,12 @@ export default function HostRegisterPage() {
         })
 
         const registerResult = await registerResponse.json()
-        console.log('[Host Register] API response:', { status: registerResponse.status, result: registerResult })
 
         if (!registerResponse.ok || !registerResult.success) {
-          // Registration failed - show error to user
-          console.error('[Host Register] Registration failed:', registerResult.error)
           setError(registerResult.error || 'Failed to register property. Please try again.')
           return
         }
 
-        console.log('[Host Register] Success! Tenant ID:', registerResult.tenantId)
         setSuccess(true)
       }
     } catch {

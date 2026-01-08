@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
     const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers()
     
     if (listError) {
-      console.error('Error listing users:', listError)
       return NextResponse.json(
         { success: false, error: 'Failed to find user' },
         { status: 500 }
@@ -117,7 +116,6 @@ export async function POST(request: NextRequest) {
       .eq('id', targetUser.id)
     
     if (updateError) {
-      console.error('Profile update error:', updateError)
       return NextResponse.json(
         { success: false, error: 'Failed to update profile' },
         { status: 500 }
@@ -136,8 +134,7 @@ export async function POST(request: NextRequest) {
       }
     })
     
-  } catch (error) {
-    console.error('Fix host profile error:', error)
+  } catch {
     return NextResponse.json(
       { success: false, error: 'An unexpected error occurred' },
       { status: 500 }

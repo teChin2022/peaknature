@@ -1,10 +1,61 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { Metadata } from 'next'
 import { TenantSettings, defaultTenantSettings, TenantAmenity, CurrencyCode } from '@/types/database'
 import { LandingPageClient } from '@/components/tenant/landing-page-client'
+import { LodgingBusinessJsonLd } from '@/components/seo/json-ld'
 
 interface TenantPageProps {
   params: Promise<{ slug: string }>
+}
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://peaksnature.com'
+
+export async function generateMetadata({ params }: TenantPageProps): Promise<Metadata> {
+  const { slug } = await params
+  const supabase = await createClient()
+  
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name, slug, settings')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+
+  if (!tenant) {
+    return {
+      title: 'Property Not Found',
+    }
+  }
+
+  const settings = tenant.settings as TenantSettings | null
+  const description = settings?.hero?.description || `Book your stay at ${tenant.name}. Authentic homestay experience with modern amenities.`
+  const images = settings?.hero?.images?.filter((img: string) => img && img.trim() !== '') || []
+
+  return {
+    title: tenant.name,
+    description,
+    openGraph: {
+      title: tenant.name,
+      description,
+      url: `${siteUrl}/${tenant.slug}`,
+      siteName: 'PeaksNature',
+      images: images.length > 0 ? images.map((img: string) => ({
+        url: img,
+        width: 1200,
+        height: 630,
+        alt: tenant.name,
+      })) : undefined,
+      locale: 'th_TH',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: tenant.name,
+      description,
+      images: images.length > 0 ? [images[0]] : undefined,
+    },
+  }
 }
 
 async function getTenantWithRooms(slug: string) {
@@ -153,15 +204,36 @@ export default async function TenantLandingPage({ params }: TenantPageProps) {
   }
 
   return (
-    <LandingPageClient
-      tenant={tenant}
-      rooms={rooms}
-      settings={settings}
-      realStats={realStats}
-      heroImages={heroImages}
-      fullAddress={fullAddress}
-      currency={currency}
-      enabledAmenities={enabledAmenities}
-    />
+    <>
+      <LodgingBusinessJsonLd
+        name={tenant.name}
+        description={settings.hero.description}
+        url={`${siteUrl}/${tenant.slug}`}
+        image={heroImages.length > 0 ? heroImages : undefined}
+        address={{
+          addressLocality: settings.location?.district || settings.contact.city,
+          addressRegion: settings.location?.province || '',
+          postalCode: settings.location?.postal_code || settings.contact.postal_code,
+          addressCountry: 'TH',
+        }}
+        priceRange={currency === 'THB' ? '฿฿' : '$$'}
+        telephone={settings.contact.phone}
+        email={settings.contact.email}
+        aggregateRating={realStats.totalReviews > 0 && realStats.averageRating ? {
+          ratingValue: realStats.averageRating,
+          reviewCount: realStats.totalReviews,
+        } : undefined}
+      />
+      <LandingPageClient
+        tenant={tenant}
+        rooms={rooms}
+        settings={settings}
+        realStats={realStats}
+        heroImages={heroImages}
+        fullAddress={fullAddress}
+        currency={currency}
+        enabledAmenities={enabledAmenities}
+      />
+    </>
   )
 }

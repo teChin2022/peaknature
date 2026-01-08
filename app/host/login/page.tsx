@@ -130,16 +130,12 @@ function HostLoginContent() {
     setError(null)
 
     try {
-      console.log('[Host Login] Starting login for:', data.email)
-      
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
       if (signInError) {
-        console.log('[Host Login] Sign in error:', signInError.message)
-        // Log failed login attempt
         logSecurityEvent(AuditActions.LOGIN_FAILED, 'warning', {
           email: data.email,
           error: signInError.message,
@@ -150,8 +146,6 @@ function HostLoginContent() {
       }
 
       if (authData.user) {
-        console.log('[Host Login] User authenticated:', authData.user.id)
-        
         // Check user role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -159,11 +153,8 @@ function HostLoginContent() {
           .eq('id', authData.user.id)
           .single()
 
-        console.log('[Host Login] Profile fetch result:', { profile, error: profileError?.message })
-
         // Handle profile not found
         if (profileError || !profile) {
-          console.log('[Host Login] Profile not found or error')
           await supabase.auth.signOut()
           setError('Profile not found. Your registration may not have completed properly. Please try registering again.')
           return
@@ -176,8 +167,6 @@ function HostLoginContent() {
         }
 
         if (profile.role !== 'host') {
-          console.log('[Host Login] User is not a host, role:', profile.role)
-          // Log unauthorized access attempt
           logSecurityEvent(AuditActions.UNAUTHORIZED_ACCESS, 'warning', {
             email: data.email,
             attemptedRole: 'host',
@@ -197,7 +186,6 @@ function HostLoginContent() {
 
         // Check email verification
         if (!authData.user.email_confirmed_at) {
-          console.log('[Host Login] Email not confirmed')
           await supabase.auth.signOut()
           setError('Please verify your email address first. Check your inbox for the verification link.')
           return
@@ -205,7 +193,6 @@ function HostLoginContent() {
 
         // Check if tenant_id is set
         if (!profile.tenant_id) {
-          console.log('[Host Login] No tenant_id set for host')
           await supabase.auth.signOut()
           setError('Your property is not linked to your account. Please contact support.')
           return
@@ -217,8 +204,6 @@ function HostLoginContent() {
           .select('slug, is_active')
           .eq('id', profile.tenant_id)
           .single()
-        
-        console.log('[Host Login] Tenant fetch result:', { tenant, error: tenantError?.message })
 
         if (tenantError || !tenant) {
           await supabase.auth.signOut()
@@ -232,17 +217,13 @@ function HostLoginContent() {
           return
         }
 
-        console.log('[Host Login] Redirecting to dashboard:', `/${tenant.slug}/dashboard`)
-        
-        // Navigate to dashboard - don't wait for navigation
-        // Set loading to false before navigation to prevent stuck state
+        // Navigate to dashboard
         setIsLoading(false)
         router.push(`/${tenant.slug}/dashboard`)
         router.refresh()
-        return // Early return since we're navigating away
+        return
       }
-    } catch (err) {
-      console.error('[Host Login] Unexpected error:', err)
+    } catch {
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setIsLoading(false)
