@@ -9,8 +9,8 @@ export function PageHeaderSkeleton() {
   return (
     <div className="bg-white border-b border-stone-200">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-        <Skeleton className="h-10 w-64 mb-2" />
-        <Skeleton className="h-5 w-96" />
+        <Skeleton className="h-10 w-48 mb-2" />
+        <Skeleton className="h-5 w-80" />
       </div>
     </div>
   )

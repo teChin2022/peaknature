@@ -3,13 +3,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function DashboardRoomsLoading() {
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - matches RoomsPageContent */}
       <div className="flex items-center justify-between">
         <div>
-          <Skeleton className="h-6 w-24 mb-1.5" />
+          <Skeleton className="h-6 w-20 mb-1" />
           <Skeleton className="h-4 w-48" />
         </div>
-        <Skeleton className="h-9 w-28" />
+        <Skeleton className="h-10 w-28" />
       </div>
 
       {/* Room List - Horizontal cards matching actual UI */}
@@ -18,7 +18,7 @@ export default function DashboardRoomsLoading() {
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex flex-col sm:flex-row">
               {/* Image */}
-              <Skeleton className="w-full sm:w-48 h-48 sm:h-36 flex-shrink-0" />
+              <Skeleton className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0" />
               
               {/* Content */}
               <div className="flex-1 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -46,13 +46,12 @@ export default function DashboardRoomsLoading() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-40" />
         <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-8 w-8 rounded" />
         </div>
       </div>
     </div>
