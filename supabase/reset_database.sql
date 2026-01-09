@@ -106,28 +106,49 @@ DROP POLICY IF EXISTS "subscription_proofs_select_public" ON storage.objects;
 DROP POLICY IF EXISTS "subscription_proofs_delete_super_admin" ON storage.objects;
 
 -- =====================================================
--- STEP 6: DELETE ALL FILES FROM STORAGE BUCKETS
+-- STEP 6: DELETE ALL STORAGE POLICIES ON storage.objects
+-- (Must drop policies before deleting objects)
 -- =====================================================
 
--- Delete all objects from tenants bucket
-DELETE FROM storage.objects WHERE bucket_id = 'tenants';
-
--- Delete all objects from bookings bucket
-DELETE FROM storage.objects WHERE bucket_id = 'bookings';
-
--- Delete all objects from subscription-proofs bucket
-DELETE FROM storage.objects WHERE bucket_id = 'subscription-proofs';
-
--- =====================================================
--- STEP 7: DELETE STORAGE BUCKETS
--- =====================================================
-
-DELETE FROM storage.buckets WHERE id = 'tenants';
-DELETE FROM storage.buckets WHERE id = 'bookings';
-DELETE FROM storage.buckets WHERE id = 'subscription-proofs';
+-- Drop ALL policies on storage.objects (clean slate)
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT policyname FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', r.policyname);
+    END LOOP;
+END $$;
 
 -- =====================================================
--- STEP 8: DELETE ALL USERS FROM AUTH
+-- STEP 7: DELETE ALL FILES FROM STORAGE BUCKETS
+-- (Run as service role - bypasses RLS)
+-- =====================================================
+
+-- Disable RLS temporarily on storage.objects to allow deletion
+ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
+
+-- Delete all objects from all buckets
+DELETE FROM storage.objects WHERE bucket_id IN ('tenants', 'bookings', 'subscription-proofs');
+
+-- Re-enable RLS
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- STEP 8: DELETE STORAGE BUCKETS
+-- =====================================================
+
+-- Disable RLS temporarily on storage.buckets to allow deletion
+ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
+
+-- Delete the buckets
+DELETE FROM storage.buckets WHERE id IN ('tenants', 'bookings', 'subscription-proofs');
+
+-- Re-enable RLS
+ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- STEP 9: DELETE ALL USERS FROM AUTH
 -- =====================================================
 -- WARNING: This deletes ALL users permanently!
 
