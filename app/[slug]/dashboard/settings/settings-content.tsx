@@ -103,6 +103,8 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    console.log('[Settings] handleSubmit called - tenant.id:', tenant.id)
 
     setIsSaving(true)
     setSuccess(false)
@@ -143,30 +145,47 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
         },
       }
 
+      console.log('[Settings] Saving settings - map_embed:', settings.contact?.map_embed?.substring(0, 50))
+      console.log('[Settings] Saving settings - map_url:', settings.contact?.map_url?.substring(0, 50))
+
+      // Create promise with timeout to detect hanging requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout - database may be experiencing issues')), 30000)
+      })
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('tenants').update as any)({
+      const updatePromise = (supabase.from('tenants').update as any)({
         name: formData.name,
         logo_url: formData.logo_url || null,
         primary_color: formData.primary_color,
         settings: settingsToSave,
       }).eq('id', tenant.id).select('id')
 
+      console.log('[Settings] Sending update request...')
+      
+      // Race between update and timeout
+      const { data, error } = await Promise.race([updatePromise, timeoutPromise]) as { data: { id: string }[] | null, error: Error | null }
+
+      console.log('[Settings] Update response received - data:', data, 'error:', error)
+
       if (error) {
-        console.error('Error saving settings:', error)
+        console.error('[Settings] Error saving settings:', error)
         alert(`Error saving settings: ${error.message}`)
       } else if (!data || data.length === 0) {
         // RLS might have blocked the update
-        console.error('No rows updated - RLS policy may have blocked the operation')
+        console.error('[Settings] No rows updated - RLS policy may have blocked the operation')
         alert('Unable to save settings. Please try logging out and back in.')
       } else {
+        console.log('[Settings] Settings saved successfully')
         setSuccess(true)
         setTimeout(() => setSuccess(false), 3000)
         router.refresh()
       }
     } catch (err) {
-      console.error('Unexpected error saving settings:', err)
+      console.error('[Settings] Unexpected error saving settings:', err)
       alert(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
+      console.log('[Settings] handleSubmit finished')
       setIsSaving(false)
     }
   }
@@ -788,7 +807,7 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                     </Label>
                     <Input
                       id="map_embed"
-                      type="url"
+                      type="text"
                       value={settings.contact.map_embed}
                       onChange={(e) => setSettings({
                         ...settings,
@@ -811,7 +830,7 @@ export function SettingsPageContent({ slug, tenant, initialSettings }: SettingsP
                     <Label htmlFor="map_url">{t('mapLink')}</Label>
                     <Input
                       id="map_url"
-                      type="url"
+                      type="text"
                       value={settings.contact.map_url}
                       onChange={(e) => setSettings({
                         ...settings,
